@@ -1,0 +1,215 @@
+<div id="glowscript" class="glowscript">
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<link type="text/css" href="https://www.glowscript.org/css/redmond/2.1/jquery-ui.custom.css" rel="stylesheet" />
+<link type="text/css" href="https://www.glowscript.org/css/ide.css" rel="stylesheet" />
+<script type="text/javascript" src="https://www.glowscript.org/lib/jquery/2.1/jquery.min.js"></script>
+<script type="text/javascript" src="https://www.glowscript.org/lib/jquery/2.1/jquery-ui.custom.min.js"></script>
+<script type="text/javascript" src="https://www.glowscript.org/package/glow.3.1.min.js"></script>
+<script type="text/javascript" src="https://www.glowscript.org/package/RSrun.3.1.min.js"></script>
+<script type="text/javascript"><!--//--><![CDATA[//><!--
+
+// START JAVASCRIPT
+;(function() {;
+var ρσ_modules = {};
+var drag, s, original_pos, original_pos_marker, displacement, len_label;
+ρσ_modules.pythonize = {};
+
+(function(){
+    function strings() {
+        var string_funcs, exclude, name;
+        string_funcs = set("capitalize strip lstrip rstrip islower isupper isspace lower upper swapcase center count endswith startswith find rfind index rindex format join ljust rjust partition rpartition replace split rsplit splitlines zfill".split(" "));
+        if (!arguments.length) {
+            exclude = (function(){
+                var s = ρσ_set();
+                s.jsset.add("split");
+                s.jsset.add("replace");
+                return s;
+            })();
+        } else if (arguments[0]) {
+            exclude = Array.prototype.slice.call(arguments);
+        } else {
+            exclude = null;
+        }
+        if (exclude) {
+            string_funcs = string_funcs.difference(set(exclude));
+        }
+        var ρσ_Iter0 = string_funcs;
+        ρσ_Iter0 = ((typeof ρσ_Iter0[Symbol.iterator] === "function") ? (ρσ_Iter0 instanceof Map ? ρσ_Iter0.keys() : ρσ_Iter0) : Object.keys(ρσ_Iter0));
+        for (var ρσ_Index0 of ρσ_Iter0) {
+            name = ρσ_Index0;
+            (ρσ_expr_temp = String.prototype)[(typeof name === "number" && name < 0) ? ρσ_expr_temp.length + name : name] = (ρσ_expr_temp = ρσ_str.prototype)[(typeof name === "number" && name < 0) ? ρσ_expr_temp.length + name : name];
+        }
+    };
+    if (!strings.__module__) Object.defineProperties(strings, {
+        __module__ : {value: "pythonize"}
+    });
+
+    ρσ_modules.pythonize.strings = strings;
+})();
+async function __main__() {
+"use strict";
+    var display = canvas;
+    var scene = canvas();
+
+    var version, print, arange, __name__, type, ρσ_ls, scene, factor, s, drag, original_pos, displacement, original_pos_marker, len_label;
+    version = ρσ_list_decorate([ "3.1", "glowscript" ]);
+    Array.prototype['+'] = function(r) {return this.concat(r)}
+    Array.prototype['*'] = function(r) {return __array_times_number(this, r)}
+    window.__GSlang = "vpython";
+    print = GSprint;
+    arange = range;
+    __name__ = "__main__";
+    type = pytype;
+    var strings = ρσ_modules.pythonize.strings;
+
+    strings();
+    
+    // CONFIGURATION SECTION - Adjust these values for your needs
+    // Canvas size - make it larger to show more detail
+    var canvasWidth = 650;  // Increase this for wider display
+    var canvasHeight = 650; // Increase this for taller display
+    
+    // Image aspect ratio - adjust to match your image
+    // Common ratios: 16/9 (widescreen), 4/3 (standard), 1/1 (square)
+    var imageAspectRatio = 1/1;  // Change this to match your image
+    
+    // Scale factor - controls how much of the image is visible
+    var scaleFactor = 1.0;  // Increase to zoom out and see more of the image
+    
+    // CHANGE THE IMAGE URL HERE
+    var imageURL = "https://raw.githubusercontent.com/mamarillasaops/Pixel-Measure/ab24edda3c73ba952b478cbae82c2a6dc8bf1caa/2_script_moon_airplane_thumbnail.jpg";  // ← REPLACE WITH YOUR IMAGE URL
+    
+    "3";
+    scene = ρσ_interpolate_kwargs.call(this, canvas, [ρσ_desugar_kwargs({
+        background: color.white, 
+        width: canvasWidth, 
+        height: canvasHeight
+    })]);
+    "4";
+    scene.fov = .01;
+    "5";
+    scene.userspin = false;
+    "6";
+    scene.userzoom = false;
+    "7";
+    scene.autoscale = false;
+    "8";
+    scene.usepan = false;
+    
+    // Calculate box dimensions based on aspect ratio
+    var boxWidth = scaleFactor;
+    var boxHeight = boxWidth / imageAspectRatio;
+    
+    // Set scene range to show the entire image
+    scene.range = Math.max(boxWidth, boxHeight) * 0.6;
+    
+    // Create the background image box
+    ρσ_interpolate_kwargs.call(this, box, [ρσ_desugar_kwargs({
+        length: boxWidth,
+        height: boxHeight,
+        width: .01, 
+        texture: imageURL
+    })]);
+    
+    "17";
+    s = ρσ_interpolate_kwargs.call(this, sphere, [ρσ_desugar_kwargs({pos: vec(0, 0, 10["-u"]()), color: color.red, size: .015["*"](vec(1, 1, 1))})]);
+    "18";
+    drag = false;
+    "19";
+    original_pos = null;
+    "20";
+    displacement = ρσ_interpolate_kwargs.call(this, arrow, [ρσ_desugar_kwargs({pos: vec(0, 0, 10["-u"]()), axis: vec(0, 0, .01), shaftwidth: .008, color: color.red})]);
+    "21";
+    original_pos_marker = ρσ_interpolate_kwargs.call(this, sphere, [ρσ_desugar_kwargs({pos: vec(0, 0, 1["-u"]()), size: .015["*"](vec(1, 1, 1)), color: color.red})]);
+    "22";
+    len_label = ρσ_interpolate_kwargs.call(this, label, [ρσ_desugar_kwargs({text: "0", pos: vec(0, 0, 10["-u"]()), color: color.red, height: 14})]);
+    "23";
+    len_label.visible = false;
+    
+    // Calculate pixels per unit based on canvas size
+    var pixelsPerUnit = canvasWidth / (2 * scene.range);
+    
+    "25";
+    async function down() {
+        "26";
+        "27";
+        s.pos = scene.mouse.pos;
+        "28";
+        drag = true;
+        "29";
+        original_pos = scene.mouse.pos;
+        "30";
+        original_pos_marker.pos = scene.mouse.pos;
+        "31";
+        displacement.pos = scene.mouse.pos;
+        "32";
+        displacement.axis = vec(0, 0, .01);
+        "33";
+        len_label.pos = original_pos;
+        "34";
+        len_label.visible = true;
+        "35";
+        len_label.text = "0 pixels";
+    };
+    if (!down.__module__) Object.defineProperties(down, {
+        __module__ : {value: null}
+    });
+
+    "37";
+    async function move() {
+        "38";
+        "39";
+        if (drag) {
+            "40";
+            s.pos = scene.mouse.pos;
+            "41";
+            displacement.axis = s.pos["-"](original_pos);
+            "42";
+            // Calculate distance in pixels using the actual canvas-to-scene ratio
+            var distanceInPixels = mag(displacement.axis) * pixelsPerUnit;
+            len_label.text = str(round(distanceInPixels, 1))["+"](" pixels");
+            "43";
+            // Position label slightly offset from the line
+            var midpoint = original_pos["+"](displacement.axis["*"](0.5));
+            var offset = norm(vec(-displacement.axis.y, displacement.axis.x, 0))["*"](0.02);
+            len_label.pos = midpoint["+"](offset);
+        }
+    };
+    if (!move.__module__) Object.defineProperties(move, {
+        __module__ : {value: null}
+    });
+
+    "45";
+    async function up() {
+        "46";
+        "47";
+        drag = false;
+    };
+    if (!up.__module__) Object.defineProperties(up, {
+        __module__ : {value: null}
+    });
+
+    "50";
+    scene.bind("mousedown", down);
+    "51";
+    scene.bind("mousemove", move);
+    "52";
+    scene.bind("mouseup", up);
+    
+    // Add instructions
+    ρσ_interpolate_kwargs.call(this, label, [ρσ_desugar_kwargs({
+        text: "Click and drag to measure distances", 
+        pos: vec(0, -scene.range * 0.9, 0), 
+        color: color.black,
+        height: 12
+    })]);
+};
+if (!__main__.__module__) Object.defineProperties(__main__, {
+    __module__ : {value: null}
+});
+
+;$(function(){ window.__context = { glowscript_container: $("#glowscript").removeAttr("id") }; __main__() })})()
+// END JAVASCRIPT
+
+//--><!]]></script>
+</div>

@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pixel Measuring Tool</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        #canvas-container {
+            position: relative;
+            display: inline-block;
+            background-color: white;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        
+        #measurement-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            cursor: crosshair;
+        }
+        
+        #image-canvas {
+            display: block;
+        }
+        
+        #instructions {
+            margin-top: 10px;
+            font-size: 14px;
+            color: #333;
+        }
+        
+        #measurement-label {
+            position: absolute;
+            background-color: rgba(255, 255, 255, 0.9);
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 14px;
+            color: red;
+            pointer-events: none;
+            display: none;
+            border: 1px solid rgba(255, 0, 0, 0.3);
+        }
+        
+        #url-input-container {
+            margin-bottom: 20px;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            max-width: 650px;
+        }
+        
+        #url-input {
+            flex: 1;
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        
+        #load-button {
+            padding: 8px 16px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        
+        #load-button:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <div id="url-input-container">
+        <input type="text" id="url-input" placeholder="Enter image URL or use default" />
+        <button id="load-button">Load Image</button>
+    </div>
+    <div id="canvas-container">
+        <canvas id="image-canvas"></canvas>
+        <canvas id="measurement-canvas"></canvas>
+        <div id="measurement-label">0 pixels</div>
+    </div>
+    <div id="instructions">Click and drag to measure distances | For local files: save this HTML and open from your computer</div>
+
+    <script>
+        // CONFIGURATION SECTION - Adjust these values for your needs
+        const canvasWidth = 650;  // Canvas width in pixels
+        const canvasHeight = 650; // Canvas height in pixels
+        
+        // CHANGE THE IMAGE URL HERE
+        const imageURL = "https://picsum.photos/800/600";
+        
+        // Get elements
+        const imageCanvas = document.getElementById('image-canvas');
+        const measureCanvas = document.getElementById('measurement-canvas');
+        const container = document.getElementById('canvas-container');
+        const label = document.getElementById('measurement-label');
+        const urlInput = document.getElementById('url-input');
+        const loadButton = document.getElementById('load-button');
+        
+        const imageCtx = imageCanvas.getContext('2d');
+        const measureCtx = measureCanvas.getContext('2d');
+        
+        // Set canvas sizes
+        imageCanvas.width = canvasWidth;
+        imageCanvas.height = canvasHeight;
+        measureCanvas.width = canvasWidth;
+        measureCanvas.height = canvasHeight;
+        
+        // Measurement state
+        let isDragging = false;
+        let startPos = null;
+        let currentPos = null;
+        
+        // Function to load an image
+        function loadImage(url) {
+            // Clear any existing measurements
+            measureCtx.clearRect(0, 0, canvasWidth, canvasHeight);
+            label.style.display = 'none';
+            
+            const img = new Image();
+            
+            // Try loading without CORS first (works for many images)
+            let corsAttempted = false;
+            
+            img.onload = function() {
+                // Calculate scaling to fit the image in the canvas while maintaining aspect ratio
+                const scale = Math.min(canvasWidth / img.width, canvasHeight / img.height);
+                const scaledWidth = img.width * scale;
+                const scaledHeight = img.height * scale;
+                
+                // Center the image
+                const x = (canvasWidth - scaledWidth) / 2;
+                const y = (canvasHeight - scaledHeight) / 2;
+                
+                // Draw the image
+                imageCtx.fillStyle = 'white';
+                imageCtx.fillRect(0, 0, canvasWidth, canvasHeight);
+                imageCtx.drawImage(img, x, y, scaledWidth, scaledHeight);
+            };
+            
+            img.onerror = function() {
+                if (!corsAttempted) {
+                    // Try with CORS proxy
+                    corsAttempted = true;
+                    console.log('Direct loading failed, trying CORS proxy...');
+                    img.src = 'https://corsproxy.io/?' + encodeURIComponent(url);
+                } else {
+                    // If both methods fail, show error with instructions
+                    imageCtx.fillStyle = '#f5f5f5';
+                    imageCtx.fillRect(0, 0, canvasWidth, canvasHeight);
+                    imageCtx.fillStyle = '#333';
+                    imageCtx.font = '16px Arial';
+                    imageCtx.textAlign = 'center';
+                    imageCtx.fillText('Failed to load image due to CORS policy', canvasWidth / 2, canvasHeight / 2 - 40);
+                    imageCtx.font = '14px Arial';
+                    imageCtx.fillText('Solutions:', canvasWidth / 2, canvasHeight / 2);
+                    imageCtx.fillText('1. Save this HTML file and the image locally', canvasWidth / 2, canvasHeight / 2 + 25);
+                    imageCtx.fillText('2. Use an image from a CORS-enabled server', canvasWidth / 2, canvasHeight / 2 + 45);
+                    imageCtx.fillText('3. Try a different CORS proxy service', canvasWidth / 2, canvasHeight / 2 + 65);
+                }
+            };
+            
+            // Start loading
+            img.src = url;
+        }
+        
+        // Load button click handler
+        loadButton.addEventListener('click', function() {
+            const url = urlInput.value.trim() || imageURL;
+            loadImage(url);
+        });
+        
+        // Also allow Enter key in input field
+        urlInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                const url = urlInput.value.trim() || imageURL;
+                loadImage(url);
+            }
+        });
+        
+        // Load default image on startup
+        loadImage(imageURL);
+        
+        // Mouse event handlers
+        function getMousePos(e) {
+            const rect = measureCanvas.getBoundingClientRect();
+            return {
+                x: e.clientX - rect.left,
+                y: e.clientY - rect.top
+            };
+        }
+        
+        function drawMeasurement() {
+            // Clear the canvas
+            measureCtx.clearRect(0, 0, canvasWidth, canvasHeight);
+            
+            if (!startPos || !currentPos) return;
+            
+            // Draw the line
+            measureCtx.strokeStyle = 'red';
+            measureCtx.lineWidth = 2;
+            measureCtx.beginPath();
+            measureCtx.moveTo(startPos.x, startPos.y);
+            measureCtx.lineTo(currentPos.x, currentPos.y);
+            measureCtx.stroke();
+            
+            // Draw start point marker
+            measureCtx.fillStyle = 'red';
+            measureCtx.beginPath();
+            measureCtx.arc(startPos.x, startPos.y, 5, 0, 2 * Math.PI);
+            measureCtx.fill();
+            
+            // Draw end point marker
+            measureCtx.beginPath();
+            measureCtx.arc(currentPos.x, currentPos.y, 5, 0, 2 * Math.PI);
+            measureCtx.fill();
+            
+            // Calculate distance
+            const dx = currentPos.x - startPos.x;
+            const dy = currentPos.y - startPos.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            
+            // Update label
+            label.textContent = distance.toFixed(1) + ' pixels';
+            
+            // Position label at midpoint, slightly offset from the line
+            const midX = (startPos.x + currentPos.x) / 2;
+            const midY = (startPos.y + currentPos.y) / 2;
+            
+            // Calculate perpendicular offset
+            const angle = Math.atan2(dy, dx) + Math.PI / 2;
+            const offsetDistance = 20;
+            const offsetX = Math.cos(angle) * offsetDistance;
+            const offsetY = Math.sin(angle) * offsetDistance;
+            
+            // Position the label
+            label.style.left = (midX + offsetX - 40) + 'px';
+            label.style.top = (midY + offsetY - 15) + 'px';
+            label.style.display = 'block';
+        }
+        
+        measureCanvas.addEventListener('mousedown', function(e) {
+            isDragging = true;
+            startPos = getMousePos(e);
+            currentPos = startPos;
+            drawMeasurement();
+        });
+        
+        measureCanvas.addEventListener('mousemove', function(e) {
+            if (isDragging) {
+                currentPos = getMousePos(e);
+                drawMeasurement();
+            }
+        });
+        
+        measureCanvas.addEventListener('mouseup', function(e) {
+            isDragging = false;
+        });
+        
+        // Also handle mouse leave to stop dragging
+        measureCanvas.addEventListener('mouseleave', function(e) {
+            if (isDragging) {
+                isDragging = false;
+            }
+        });
+    </script>
+</body>
+</html>

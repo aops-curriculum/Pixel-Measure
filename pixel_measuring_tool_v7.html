@@ -124,7 +124,7 @@
                 imageCtx.drawImage(img, x, y, scaledWidth, scaledHeight);
             };
             
-            //img.onerror = function() {
+            img.onerror = function() {
                 if (!corsAttempted) {
                     // Try with CORS proxy
                     corsAttempted = true;

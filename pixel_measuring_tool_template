@@ -58,7 +58,7 @@
         <canvas id="measurement-canvas"></canvas>
         <div id="measurement-label">0 pixels</div>
     </div>
-    <div id="instructions">Click and drag to measure distances | For local files: save this HTML and open from your computer</div>
+    <div id="instructions">Click and drag to measure distances</div>
 
     <script>
         // CONFIGURATION SECTION - Adjust these values for your needs
@@ -66,16 +66,7 @@
         const canvasHeight = 650; // Canvas height in pixels
         
         // CHANGE THE IMAGE URL HERE
-        // Note: Due to CORS restrictions, some images may not load from external servers
-        // Alternative options:
-        // 1. Use a local image file (save HTML and image in same folder): "./your-image.jpg"
-        // 2. Use a CORS-enabled image service
-        // 3. Use data URL for small images
-        // 4. Example images that should work:
-        //    - "https://picsum.photos/800/600" (random image)
-        //    - "https://via.placeholder.com/800x600" (placeholder)
-        //    - "https://images.unsplash.com/photo-1506905925346-21bda4d32df4" (sample photo)
-        const imageURL = "http://cdn.artofproblemsolving.com/school/crypt/00539-b566a69b202a744c6392d4f9ecc61809e3ae15c1/files/04_script_moon_airplane.jpg";
+        const imageURL = "https://aops-curriculum.github.io/Pixel-Measure/Images/AoPS_Main_Logos_Cube_Only.png";
         
         // Get elements
         const imageCanvas = document.getElementById('image-canvas');
@@ -138,11 +129,6 @@
                     imageCtx.font = '16px Arial';
                     imageCtx.textAlign = 'center';
                     imageCtx.fillText('Failed to load image due to CORS policy', canvasWidth / 2, canvasHeight / 2 - 40);
-                    imageCtx.font = '14px Arial';
-                    imageCtx.fillText('Solutions:', canvasWidth / 2, canvasHeight / 2);
-                    imageCtx.fillText('1. Save this HTML file and the image locally', canvasWidth / 2, canvasHeight / 2 + 25);
-                    imageCtx.fillText('2. Use an image from a CORS-enabled server', canvasWidth / 2, canvasHeight / 2 + 45);
-                    imageCtx.fillText('3. Try a different CORS proxy service', canvasWidth / 2, canvasHeight / 2 + 65);
                 }
             };
             

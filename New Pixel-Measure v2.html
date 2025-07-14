@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pixel Measuring Tool</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        #canvas-container {
+            position: relative;
+            display: inline-block;
+            background-color: white;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        
+        #measurement-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            cursor: crosshair;
+        }
+        
+        #image-canvas {
+            display: block;
+        }
+        
+        #instructions {
+            margin-top: 10px;
+            font-size: 14px;
+            color: #333;
+        }
+        
+        #measurement-label {
+            position: absolute;
+            background-color: rgba(255, 255, 255, 0.9);
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 14px;
+            color: red;
+            pointer-events: none;
+            display: none;
+            border: 1px solid rgba(255, 0, 0, 0.3);
+        }
+    </style>
+</head>
+<body>
+    <div id="canvas-container">
+        <canvas id="image-canvas"></canvas>
+        <canvas id="measurement-canvas"></canvas>
+        <div id="measurement-label">0 pixels</div>
+    </div>
+    <div id="instructions">Click and drag to measure distances</div>
+
+    <script>
+        // CONFIGURATION SECTION - Adjust these values for your needs
+        const canvasWidth = 650;  // Canvas width in pixels
+        const canvasHeight = 650; // Canvas height in pixels
+        
+        // CHANGE THE IMAGE URL HERE
+        const imageURL = "http://cdn.artofproblemsolving.com/school/crypt/00539-b566a69b202a744c6392d4f9ecc61809e3ae15c1/files/04_script_moon_airplane.jpg";  // ← REPLACE WITH YOUR IMAGE URL
+        
+        // Get canvas elements
+        const imageCanvas = document.getElementById('image-canvas');
+        const measureCanvas = document.getElementById('measurement-canvas');
+        const container = document.getElementById('canvas-container');
+        const label = document.getElementById('measurement-label');
+        
+        const imageCtx = imageCanvas.getContext('2d');
+        const measureCtx = measureCanvas.getContext('2d');
+        
+        // Set canvas sizes
+        imageCanvas.width = canvasWidth;
+        imageCanvas.height = canvasHeight;
+        measureCanvas.width = canvasWidth;
+        measureCanvas.height = canvasHeight;
+        
+        // Measurement state
+        let isDragging = false;
+        let startPos = null;
+        let currentPos = null;
+        
+        // Load and display the image
+        const img = new Image();
+        img.crossOrigin = "anonymous"; // Enable CORS if needed
+        
+        img.onload = function() {
+            // Calculate scaling to fit the image in the canvas while maintaining aspect ratio
+            const scale = Math.min(canvasWidth / img.width, canvasHeight / img.height);
+            const scaledWidth = img.width * scale;
+            const scaledHeight = img.height * scale;
+            
+            // Center the image
+            const x = (canvasWidth - scaledWidth) / 2;
+            const y = (canvasHeight - scaledHeight) / 2;
+            
+            // Draw the image
+            imageCtx.fillStyle = 'white';
+            imageCtx.fillRect(0, 0, canvasWidth, canvasHeight);
+            imageCtx.drawImage(img, x, y, scaledWidth, scaledHeight);
+        };
+        
+        img.onerror = function() {
+            // If image fails to load, show a placeholder
+            imageCtx.fillStyle = '#ddd';
+            imageCtx.fillRect(0, 0, canvasWidth, canvasHeight);
+            imageCtx.fillStyle = '#666';
+            imageCtx.font = '16px Arial';
+            imageCtx.textAlign = 'center';
+            imageCtx.fillText('Failed to load image', canvasWidth / 2, canvasHeight / 2);
+        };
+        
+        img.src = imageURL;
+        
+        // Mouse event handlers
+        function getMousePos(e) {
+            const rect = measureCanvas.getBoundingClientRect();
+            return {
+                x: e.clientX - rect.left,
+                y: e.clientY - rect.top
+            };
+        }
+        
+        function drawMeasurement() {
+            // Clear the canvas
+            measureCtx.clearRect(0, 0, canvasWidth, canvasHeight);
+            
+            if (!startPos || !currentPos) return;
+            
+            // Draw the line
+            measureCtx.strokeStyle = 'red';
+            measureCtx.lineWidth = 2;
+            measureCtx.beginPath();
+            measureCtx.moveTo(startPos.x, startPos.y);
+            measureCtx.lineTo(currentPos.x, currentPos.y);
+            measureCtx.stroke();
+            
+            // Draw start point marker
+            measureCtx.fillStyle = 'red';
+            measureCtx.beginPath();
+            measureCtx.arc(startPos.x, startPos.y, 5, 0, 2 * Math.PI);
+            measureCtx.fill();
+            
+            // Draw end point marker
+            measureCtx.beginPath();
+            measureCtx.arc(currentPos.x, currentPos.y, 5, 0, 2 * Math.PI);
+            measureCtx.fill();
+            
+            // Calculate distance
+            const dx = currentPos.x - startPos.x;
+            const dy = currentPos.y - startPos.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            
+            // Update label
+            label.textContent = distance.toFixed(1) + ' pixels';
+            
+            // Position label at midpoint, slightly offset from the line
+            const midX = (startPos.x + currentPos.x) / 2;
+            const midY = (startPos.y + currentPos.y) / 2;
+            
+            // Calculate perpendicular offset
+            const angle = Math.atan2(dy, dx) + Math.PI / 2;
+            const offsetDistance = 20;
+            const offsetX = Math.cos(angle) * offsetDistance;
+            const offsetY = Math.sin(angle) * offsetDistance;
+            
+            // Position the label
+            label.style.left = (midX + offsetX - 40) + 'px';
+            label.style.top = (midY + offsetY - 15) + 'px';
+            label.style.display = 'block';
+        }
+        
+        measureCanvas.addEventListener('mousedown', function(e) {
+            isDragging = true;
+            startPos = getMousePos(e);
+            currentPos = startPos;
+            drawMeasurement();
+        });
+        
+        measureCanvas.addEventListener('mousemove', function(e) {
+            if (isDragging) {
+                currentPos = getMousePos(e);
+                drawMeasurement();
+            }
+        });
+        
+        measureCanvas.addEventListener('mouseup', function(e) {
+            isDragging = false;
+        });
+        
+        // Also handle mouse leave to stop dragging
+        measureCanvas.addEventListener('mouseleave', function(e) {
+            if (isDragging) {
+                isDragging = false;
+            }
+        });
+    </script>
+</body>
+</html>

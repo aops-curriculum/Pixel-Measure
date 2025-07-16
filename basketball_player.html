@@ -157,9 +157,9 @@
             // Calculate distance and angle
             const dx = currentPos.x - startPos.x;
             const dy = currentPos.y - startPos.y;
-            const distance = Math.sqrt(dx * dx + dy * dy);
+            const distancePixels = Math.sqrt(dx * dx + dy * dy);
             const angle = Math.atan2(dy, dx);
-            
+        
             // Draw the line
             measureCtx.strokeStyle = 'red';
             measureCtx.lineWidth = 2;
@@ -167,12 +167,10 @@
             measureCtx.moveTo(startPos.x, startPos.y);
             measureCtx.lineTo(currentPos.x, currentPos.y);
             measureCtx.stroke();
-            
-            // Arrowhead size
+        
+            // Draw arrowheads
             const arrowLength = 15;
-            const arrowAngle = Math.PI / 6; // 30 degrees
-            
-            // Function to draw arrowhead
+            const arrowAngle = Math.PI / 6;
             function drawArrowhead(x, y, direction) {
                 measureCtx.fillStyle = 'red';
                 measureCtx.beginPath();
@@ -188,29 +186,32 @@
                 measureCtx.closePath();
                 measureCtx.fill();
             }
-            
-            // Draw arrowheads at both ends
-            drawArrowhead(startPos.x, startPos.y, angle + Math.PI); // Point away from end
-            drawArrowhead(currentPos.x, currentPos.y, angle); // Point away from start
-            
+            drawArrowhead(startPos.x, startPos.y, angle + Math.PI);
+            drawArrowhead(currentPos.x, currentPos.y, angle);
+        
+            // Conversion: 163 px = 12 ft => 1 px = 12 / 163 ft
+            const feetTotal = distancePixels * 12 / 163;
+            const feet = Math.floor(feetTotal);
+            const inches = Math.round((feetTotal - feet) * 12);
+        
+            // Build label string
+            const labelStr = `${feet}' ${inches}"`;
+        
             // Update label
-            label.textContent = Math.round(distance) + ' pixels';
-            
-            // Position label at midpoint, slightly offset from the line
+            label.textContent = labelStr;
+        
+            // Position label
             const midX = (startPos.x + currentPos.x) / 2;
             const midY = (startPos.y + currentPos.y) / 2;
-            
-            // Calculate perpendicular offset
-            const labelAngle = Math.atan2(dy, dx) + Math.PI / 2;
+            const labelAngle = angle + Math.PI / 2;
             const offsetDistance = 20;
             const offsetX = Math.cos(labelAngle) * offsetDistance;
             const offsetY = Math.sin(labelAngle) * offsetDistance;
-            
-            // Position the label
             label.style.left = (midX + offsetX - 40) + 'px';
             label.style.top = (midY + offsetY - 15) + 'px';
             label.style.display = 'block';
         }
+
         
         measureCanvas.addEventListener('mousedown', function(e) {
             isDragging = true;

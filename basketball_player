@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pixel Measuring Tool</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        #canvas-container {
+            position: relative;
+            display: inline-block;
+            background-color: white;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        
+        #measurement-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            cursor: crosshair;
+        }
+        
+        #image-canvas {
+            display: block;
+        }
+        
+        #instructions {
+            margin-top: 10px;
+            font-size: 14px;
+            color: #333;
+        }
+        
+        #measurement-label {
+            position: absolute;
+            background-color: rgba(255, 255, 255, 0.9);
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 14px;
+            color: red;
+            pointer-events: none;
+            display: none;
+            border: 1px solid rgba(255, 0, 0, 0.3);
+        }
+    </style>
+</head>
+<body>
+    <div id="canvas-container">
+        <canvas id="image-canvas"></canvas>
+        <canvas id="measurement-canvas"></canvas>
+        <div id="measurement-label">0 pixels</div>
+    </div>
+    <div id="instructions">Click and drag to measure distances</div>
+
+    <script>
+        // CONFIGURATION SECTION - Adjust these values for your needs
+        const canvasWidth = 650;  // Canvas width in pixels
+        const canvasHeight = 650; // Canvas height in pixels
+        
+        // CHANGE THE IMAGE URL HERE
+        const imageURL = "https://aops-curriculum.github.io/Pixel-Measure/Images/basketball_player.png";
+        
+        // Get elements
+        const imageCanvas = document.getElementById('image-canvas');
+        const measureCanvas = document.getElementById('measurement-canvas');
+        const container = document.getElementById('canvas-container');
+        const label = document.getElementById('measurement-label');
+        
+        const imageCtx = imageCanvas.getContext('2d');
+        const measureCtx = measureCanvas.getContext('2d');
+        
+        // Set canvas sizes
+        imageCanvas.width = canvasWidth;
+        imageCanvas.height = canvasHeight;
+        measureCanvas.width = canvasWidth;
+        measureCanvas.height = canvasHeight;
+        
+        // Measurement state
+        let isDragging = false;
+        let startPos = null;
+        let currentPos = null;
+        
+        // Function to load an image
+        function loadImage(url) {
+            // Clear any existing measurements
+            measureCtx.clearRect(0, 0, canvasWidth, canvasHeight);
+            label.style.display = 'none';
+            
+            const img = new Image();
+            
+            // Try loading without CORS first (works for many images)
+            let corsAttempted = false;
+            
+            img.onload = function() {
+                // Calculate scaling to fit the image in the canvas while maintaining aspect ratio
+                const scale = Math.min(canvasWidth / img.width, canvasHeight / img.height);
+                const scaledWidth = img.width * scale;
+                const scaledHeight = img.height * scale;
+                
+                // Center the image
+                const x = (canvasWidth - scaledWidth) / 2;
+                const y = (canvasHeight - scaledHeight) / 2;
+                
+                // Draw the image
+                imageCtx.fillStyle = 'white';
+                imageCtx.fillRect(0, 0, canvasWidth, canvasHeight);
+                imageCtx.drawImage(img, x, y, scaledWidth, scaledHeight);
+            };
+            
+            img.onerror = function() {
+                if (!corsAttempted) {
+                    // Try with CORS proxy
+                    corsAttempted = true;
+                    console.log('Direct loading failed, trying CORS proxy...');
+                    img.src = 'https://corsproxy.io/?' + encodeURIComponent(url);
+                } else {
+                    // If both methods fail, show error with instructions
+                    imageCtx.fillStyle = '#f5f5f5';
+                    imageCtx.fillRect(0, 0, canvasWidth, canvasHeight);
+                    imageCtx.fillStyle = '#333';
+                    imageCtx.font = '16px Arial';
+                    imageCtx.textAlign = 'center';
+                    imageCtx.fillText('Failed to load image due to CORS policy', canvasWidth / 2, canvasHeight / 2 - 40);
+                }
+            };
+            
+            // Start loading
+            img.src = url;
+        }
+        
+        // Load default image on startup
+        loadImage(imageURL);
+        
+        // Mouse event handlers
+        function getMousePos(e) {
+            const rect = measureCanvas.getBoundingClientRect();
+            return {
+                x: e.clientX - rect.left,
+                y: e.clientY - rect.top
+            };
+        }
+        
+        function drawMeasurement() {
+            // Clear the canvas
+            measureCtx.clearRect(0, 0, canvasWidth, canvasHeight);
+            
+            if (!startPos || !currentPos) return;
+            
+            // Calculate distance and angle
+            const dx = currentPos.x - startPos.x;
+            const dy = currentPos.y - startPos.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            const angle = Math.atan2(dy, dx);
+            
+            // Draw the line
+            measureCtx.strokeStyle = 'red';
+            measureCtx.lineWidth = 2;
+            measureCtx.beginPath();
+            measureCtx.moveTo(startPos.x, startPos.y);
+            measureCtx.lineTo(currentPos.x, currentPos.y);
+            measureCtx.stroke();
+            
+            // Arrowhead size
+            const arrowLength = 15;
+            const arrowAngle = Math.PI / 6; // 30 degrees
+            
+            // Function to draw arrowhead
+            function drawArrowhead(x, y, direction) {
+                measureCtx.fillStyle = 'red';
+                measureCtx.beginPath();
+                measureCtx.moveTo(x, y);
+                measureCtx.lineTo(
+                    x - arrowLength * Math.cos(direction - arrowAngle),
+                    y - arrowLength * Math.sin(direction - arrowAngle)
+                );
+                measureCtx.lineTo(
+                    x - arrowLength * Math.cos(direction + arrowAngle),
+                    y - arrowLength * Math.sin(direction + arrowAngle)
+                );
+                measureCtx.closePath();
+                measureCtx.fill();
+            }
+            
+            // Draw arrowheads at both ends
+            drawArrowhead(startPos.x, startPos.y, angle + Math.PI); // Point away from end
+            drawArrowhead(currentPos.x, currentPos.y, angle); // Point away from start
+            
+            // Update label
+            label.textContent = Math.round(distance) + ' pixels';
+            
+            // Position label at midpoint, slightly offset from the line
+            const midX = (startPos.x + currentPos.x) / 2;
+            const midY = (startPos.y + currentPos.y) / 2;
+            
+            // Calculate perpendicular offset
+            const labelAngle = Math.atan2(dy, dx) + Math.PI / 2;
+            const offsetDistance = 20;
+            const offsetX = Math.cos(labelAngle) * offsetDistance;
+            const offsetY = Math.sin(labelAngle) * offsetDistance;
+            
+            // Position the label
+            label.style.left = (midX + offsetX - 40) + 'px';
+            label.style.top = (midY + offsetY - 15) + 'px';
+            label.style.display = 'block';
+        }
+        
+        measureCanvas.addEventListener('mousedown', function(e) {
+            isDragging = true;
+            startPos = getMousePos(e);
+            currentPos = startPos;
+            drawMeasurement();
+        });
+        
+        measureCanvas.addEventListener('mousemove', function(e) {
+            if (isDragging) {
+                currentPos = getMousePos(e);
+                drawMeasurement();
+            }
+        });
+        
+        measureCanvas.addEventListener('mouseup', function(e) {
+            isDragging = false;
+        });
+        
+        // Also handle mouse leave to stop dragging
+        measureCanvas.addEventListener('mouseleave', function(e) {
+            if (isDragging) {
+                isDragging = false;
+            }
+        });
+    </script>
+</body>
+</html>

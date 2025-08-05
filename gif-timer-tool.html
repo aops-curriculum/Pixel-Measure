@@ -128,12 +128,43 @@
         #reset-btn:active {
             transform: translateY(0);
         }
+        
+        #reload-gif-btn {
+            background: #4a4a4a;
+            color: #fff;
+            border: none;
+            padding: 8px 20px;
+            border-radius: 6px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        #reload-gif-btn:hover {
+            background: #5a5a5a;
+            transform: translateY(-1px);
+        }
+        
+        #reload-gif-btn:active {
+            transform: translateY(0);
+        }
+        
+        #loading-indicator {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #666;
+            font-size: 16px;
+            display: none;
+        }
     </style>
 </head>
 <body>
     <div id="gif-container">
         <img id="gif-image" src="" alt="GIF to measure">
         <div id="timer-display">Click to start timer</div>
+        <div id="loading-indicator">Loading GIF...</div>
     </div>
     
     <div id="instructions">
@@ -142,6 +173,7 @@
     
     <div id="controls">
         <button id="reset-btn">Reset Timer</button>
+        <button id="reload-gif-btn">Reload GIF</button>
     </div>
 
     <script>
@@ -160,6 +192,8 @@
         const gifImage = document.getElementById('gif-image');
         const timerDisplay = document.getElementById('timer-display');
         const resetBtn = document.getElementById('reset-btn');
+        const reloadGifBtn = document.getElementById('reload-gif-btn');
+        const loadingIndicator = document.getElementById('loading-indicator');
         
         // Timer state
         let isTimerActive = false;
@@ -167,15 +201,36 @@
         let timerInterval = null;
         let timerDot = null;
         
-        // Load the GIF
-        gifImage.src = GIF_URL;
+        // Load the GIF initially (without forced reload)
+        function loadGif(forceReload = false) {
+            loadingIndicator.style.display = 'block';
+            gifImage.style.opacity = '0.3';
+            
+            if (forceReload) {
+                // Only add timestamp when explicitly reloading
+                const timestamp = new Date().getTime();
+                gifImage.src = GIF_URL + '?t=' + timestamp;
+            } else {
+                // Normal load - let browser cache work naturally
+                gifImage.src = GIF_URL;
+            }
+        }
         
-        // Force GIF to restart when loaded
+        // Handle successful GIF load
         gifImage.onload = function() {
-            // Force reload to ensure GIF plays from beginning
-            const timestamp = new Date().getTime();
-            gifImage.src = GIF_URL + '?t=' + timestamp;
+            loadingIndicator.style.display = 'none';
+            gifImage.style.opacity = '1';
+            // Don't reload here - let the GIF play naturally
         };
+        
+        // Handle GIF loading errors
+        gifImage.onerror = function() {
+            loadingIndicator.textContent = 'Error loading GIF';
+            loadingIndicator.style.color = '#ff6666';
+        };
+        
+        // Initial load
+        loadGif(false);
         
         // Handle clicks on the GIF container
         gifContainer.addEventListener('click', function(event) {
@@ -257,7 +312,7 @@
             }
         }
         
-        // Reset timer function
+        // Reset timer function (only resets timer, not GIF)
         function resetTimer() {
             // Stop any active timer
             if (isTimerActive) {
@@ -277,19 +332,24 @@
             // Reset display
             timerDisplay.style.color = '#ff6666';
             timerDisplay.textContent = 'Click to start timer';
-            
-            // Reload GIF to restart it
-            const timestamp = new Date().getTime();
-            gifImage.src = GIF_URL + '?t=' + timestamp;
         }
         
-        // Reset button handler
+        // Reload GIF function (separate from timer reset)
+        function reloadGif() {
+            resetTimer(); // Also reset timer when reloading GIF
+            loadGif(true); // Force reload with timestamp
+        }
+        
+        // Button handlers
         resetBtn.addEventListener('click', resetTimer);
+        reloadGifBtn.addEventListener('click', reloadGif);
         
         // Keyboard shortcuts
         document.addEventListener('keydown', function(event) {
             if (event.key === 'r' || event.key === 'R') {
                 resetTimer();
+            } else if (event.key === 'g' || event.key === 'G') {
+                reloadGif();
             } else if (event.key === ' ') {
                 event.preventDefault();
                 // Simulate click at center if space is pressed

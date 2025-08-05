@@ -7,22 +7,23 @@
     <style>
         body {
             margin: 0;
-            padding: 20px;
+            padding: 10px;
             background-color: #1a1a1a;
             font-family: Arial, sans-serif;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            min-height: 100vh;
+            height: 100vh;
+            box-sizing: border-box;
         }
         
         #gif-container {
             position: relative;
-            width: 600px;
-            height: 600px;
-            border: 3px solid #333;
-            border-radius: 12px;
+            width: 450px;
+            height: 450px;
+            border: 2px solid #333;
+            border-radius: 8px;
             overflow: hidden;
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
             cursor: crosshair;
@@ -38,15 +39,15 @@
         
         #timer-display {
             position: absolute;
-            top: 20px;
+            top: 15px;
             left: 50%;
             transform: translateX(-50%);
-            padding: 12px 24px;
+            padding: 8px 16px;
             background-color: rgba(0, 0, 0, 0.95);
             border: 1px solid #666;
-            border-radius: 8px;
+            border-radius: 6px;
             color: #ff6666;
-            font-size: 20px;
+            font-size: 16px;
             font-weight: bold;
             text-align: center;
             backdrop-filter: blur(10px);
@@ -56,11 +57,11 @@
         
         .timer-dot {
             position: absolute;
-            width: 10px;
-            height: 10px;
+            width: 8px;
+            height: 8px;
             background-color: #ff0000;
             border-radius: 50%;
-            box-shadow: 0 0 10px rgba(255, 0, 0, 0.8);
+            box-shadow: 0 0 8px rgba(255, 0, 0, 0.8);
             z-index: 90;
             pointer-events: none;
             animation: pulse 0.5s ease-in-out infinite;
@@ -72,8 +73,8 @@
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            width: 20px;
-            height: 20px;
+            width: 16px;
+            height: 16px;
             border: 2px solid rgba(255, 0, 0, 0.5);
             border-radius: 50%;
         }
@@ -96,16 +97,16 @@
         }
         
         #instructions {
-            margin-top: 20px;
+            margin-top: 12px;
             color: #ccc;
-            font-size: 14px;
+            font-size: 12px;
             text-align: center;
         }
         
         #controls {
-            margin-top: 15px;
+            margin-top: 10px;
             display: flex;
-            gap: 15px;
+            gap: 10px;
             align-items: center;
         }
         
@@ -113,9 +114,9 @@
             background: #4a4a4a;
             color: #fff;
             border: none;
-            padding: 8px 20px;
-            border-radius: 6px;
-            font-size: 14px;
+            padding: 6px 16px;
+            border-radius: 5px;
+            font-size: 12px;
             cursor: pointer;
             transition: all 0.3s ease;
         }
@@ -133,9 +134,9 @@
             background: #4a4a4a;
             color: #fff;
             border: none;
-            padding: 8px 20px;
-            border-radius: 6px;
-            font-size: 14px;
+            padding: 6px 16px;
+            border-radius: 5px;
+            font-size: 12px;
             cursor: pointer;
             transition: all 0.3s ease;
         }
@@ -155,7 +156,7 @@
             left: 50%;
             transform: translate(-50%, -50%);
             color: #666;
-            font-size: 16px;
+            font-size: 14px;
             display: none;
         }
     </style>
@@ -261,8 +262,8 @@
             // Create new timer dot at click position
             timerDot = document.createElement('div');
             timerDot.className = 'timer-dot';
-            timerDot.style.left = (x - 5) + 'px'; // Center the dot
-            timerDot.style.top = (y - 5) + 'px';
+            timerDot.style.left = (x - 4) + 'px'; // Center the dot
+            timerDot.style.top = (y - 4) + 'px';
             gifContainer.appendChild(timerDot);
             
             // Start the timer
@@ -354,7 +355,7 @@
                 event.preventDefault();
                 // Simulate click at center if space is pressed
                 if (!isTimerActive) {
-                    startTimer(300, 300);
+                    startTimer(225, 225);
                 } else {
                     stopTimer();
                 }

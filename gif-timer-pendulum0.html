@@ -7,22 +7,23 @@
     <style>
         body {
             margin: 0;
-            padding: 20px;
+            padding: 5px;
             background-color: #1a1a1a;
             font-family: Arial, sans-serif;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            min-height: 100vh;
+            height: 100vh;
+            box-sizing: border-box;
         }
         
         #gif-container {
             position: relative;
-            width: 600px;
-            height: 600px;
-            border: 3px solid #333;
-            border-radius: 12px;
+            width: 500px;
+            height: 500px;
+            border: 2px solid #333;
+            border-radius: 8px;
             overflow: hidden;
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
             cursor: crosshair;
@@ -38,15 +39,15 @@
         
         #timer-display {
             position: absolute;
-            top: 20px;
+            top: 15px;
             left: 50%;
             transform: translateX(-50%);
-            padding: 12px 24px;
+            padding: 8px 16px;
             background-color: rgba(0, 0, 0, 0.95);
             border: 1px solid #666;
-            border-radius: 8px;
+            border-radius: 6px;
             color: #ff6666;
-            font-size: 20px;
+            font-size: 16px;
             font-weight: bold;
             text-align: center;
             backdrop-filter: blur(10px);
@@ -56,11 +57,11 @@
         
         .timer-dot {
             position: absolute;
-            width: 10px;
-            height: 10px;
+            width: 8px;
+            height: 8px;
             background-color: #ff0000;
             border-radius: 50%;
-            box-shadow: 0 0 10px rgba(255, 0, 0, 0.8);
+            box-shadow: 0 0 8px rgba(255, 0, 0, 0.8);
             z-index: 90;
             pointer-events: none;
             animation: pulse 0.5s ease-in-out infinite;
@@ -72,8 +73,8 @@
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            width: 20px;
-            height: 20px;
+            width: 16px;
+            height: 16px;
             border: 2px solid rgba(255, 0, 0, 0.5);
             border-radius: 50%;
         }
@@ -96,16 +97,16 @@
         }
         
         #instructions {
-            margin-top: 20px;
+            margin-top: 8px;
             color: #ccc;
-            font-size: 14px;
+            font-size: 12px;
             text-align: center;
         }
         
         #controls {
-            margin-top: 15px;
+            margin-top: 8px;
             display: flex;
-            gap: 15px;
+            gap: 10px;
             align-items: center;
         }
         
@@ -113,9 +114,9 @@
             background: #4a4a4a;
             color: #fff;
             border: none;
-            padding: 8px 20px;
-            border-radius: 6px;
-            font-size: 14px;
+            padding: 6px 16px;
+            border-radius: 5px;
+            font-size: 12px;
             cursor: pointer;
             transition: all 0.3s ease;
         }
@@ -128,12 +129,43 @@
         #reset-btn:active {
             transform: translateY(0);
         }
+        
+        #reload-gif-btn {
+            background: #4a4a4a;
+            color: #fff;
+            border: none;
+            padding: 6px 16px;
+            border-radius: 5px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        #reload-gif-btn:hover {
+            background: #5a5a5a;
+            transform: translateY(-1px);
+        }
+        
+        #reload-gif-btn:active {
+            transform: translateY(0);
+        }
+        
+        #loading-indicator {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #666;
+            font-size: 14px;
+            display: none;
+        }
     </style>
 </head>
 <body>
     <div id="gif-container">
         <img id="gif-image" src="" alt="GIF to measure">
         <div id="timer-display">Click to start timer</div>
+        <div id="loading-indicator">Loading GIF...</div>
     </div>
     
     <div id="instructions">
@@ -142,6 +174,7 @@
     
     <div id="controls">
         <button id="reset-btn">Reset Timer</button>
+        <button id="reload-gif-btn">Reload GIF</button>
     </div>
 
     <script>
@@ -160,6 +193,8 @@
         const gifImage = document.getElementById('gif-image');
         const timerDisplay = document.getElementById('timer-display');
         const resetBtn = document.getElementById('reset-btn');
+        const reloadGifBtn = document.getElementById('reload-gif-btn');
+        const loadingIndicator = document.getElementById('loading-indicator');
         
         // Timer state
         let isTimerActive = false;
@@ -167,15 +202,36 @@
         let timerInterval = null;
         let timerDot = null;
         
-        // Load the GIF
-        gifImage.src = GIF_URL;
+        // Load the GIF initially (without forced reload)
+        function loadGif(forceReload = false) {
+            loadingIndicator.style.display = 'block';
+            gifImage.style.opacity = '0.3';
+            
+            if (forceReload) {
+                // Only add timestamp when explicitly reloading
+                const timestamp = new Date().getTime();
+                gifImage.src = GIF_URL + '?t=' + timestamp;
+            } else {
+                // Normal load - let browser cache work naturally
+                gifImage.src = GIF_URL;
+            }
+        }
         
-        // Force GIF to restart when loaded
+        // Handle successful GIF load
         gifImage.onload = function() {
-            // Force reload to ensure GIF plays from beginning
-            const timestamp = new Date().getTime();
-            gifImage.src = GIF_URL + '?t=' + timestamp;
+            loadingIndicator.style.display = 'none';
+            gifImage.style.opacity = '1';
+            // Don't reload here - let the GIF play naturally
         };
+        
+        // Handle GIF loading errors
+        gifImage.onerror = function() {
+            loadingIndicator.textContent = 'Error loading GIF';
+            loadingIndicator.style.color = '#ff6666';
+        };
+        
+        // Initial load
+        loadGif(false);
         
         // Handle clicks on the GIF container
         gifContainer.addEventListener('click', function(event) {
@@ -206,8 +262,8 @@
             // Create new timer dot at click position
             timerDot = document.createElement('div');
             timerDot.className = 'timer-dot';
-            timerDot.style.left = (x - 5) + 'px'; // Center the dot
-            timerDot.style.top = (y - 5) + 'px';
+            timerDot.style.left = (x - 4) + 'px'; // Center the dot
+            timerDot.style.top = (y - 4) + 'px';
             gifContainer.appendChild(timerDot);
             
             // Start the timer
@@ -257,7 +313,7 @@
             }
         }
         
-        // Reset timer function
+        // Reset timer function (only resets timer, not GIF)
         function resetTimer() {
             // Stop any active timer
             if (isTimerActive) {
@@ -277,24 +333,29 @@
             // Reset display
             timerDisplay.style.color = '#ff6666';
             timerDisplay.textContent = 'Click to start timer';
-            
-            // Reload GIF to restart it
-            const timestamp = new Date().getTime();
-            gifImage.src = GIF_URL + '?t=' + timestamp;
         }
         
-        // Reset button handler
+        // Reload GIF function (separate from timer reset)
+        function reloadGif() {
+            resetTimer(); // Also reset timer when reloading GIF
+            loadGif(true); // Force reload with timestamp
+        }
+        
+        // Button handlers
         resetBtn.addEventListener('click', resetTimer);
+        reloadGifBtn.addEventListener('click', reloadGif);
         
         // Keyboard shortcuts
         document.addEventListener('keydown', function(event) {
             if (event.key === 'r' || event.key === 'R') {
                 resetTimer();
+            } else if (event.key === 'g' || event.key === 'G') {
+                reloadGif();
             } else if (event.key === ' ') {
                 event.preventDefault();
                 // Simulate click at center if space is pressed
                 if (!isTimerActive) {
-                    startTimer(300, 300);
+                    startTimer(250, 250);
                 } else {
                     stopTimer();
                 }

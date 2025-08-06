@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GIF Time Measurement Tool</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background-color: #1a1a1a;
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+        }
+        
+        #gif-container {
+            position: relative;
+            width: 600px;
+            height: 600px;
+            border: 3px solid #333;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+            cursor: crosshair;
+            background-color: #000;
+        }
+        
+        #gif-image {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            display: block;
+        }
+        
+        #timer-display {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 12px 24px;
+            background-color: rgba(0, 0, 0, 0.95);
+            border: 1px solid #666;
+            border-radius: 8px;
+            color: #ff6666;
+            font-size: 20px;
+            font-weight: bold;
+            text-align: center;
+            backdrop-filter: blur(10px);
+            user-select: none;
+            z-index: 100;
+        }
+        
+        .timer-dot {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background-color: #ff0000;
+            border-radius: 50%;
+            box-shadow: 0 0 10px rgba(255, 0, 0, 0.8);
+            z-index: 90;
+            pointer-events: none;
+            animation: pulse 0.5s ease-in-out infinite;
+        }
+        
+        .timer-dot::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(255, 0, 0, 0.5);
+            border-radius: 50%;
+        }
+        
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+        
+        .timer-dot.fade-out {
+            animation: fadeOut 1s ease-out forwards;
+        }
+        
+        @keyframes fadeOut {
+            to {
+                opacity: 0;
+                transform: scale(0.5);
+            }
+        }
+        
+        #instructions {
+            margin-top: 20px;
+            color: #ccc;
+            font-size: 14px;
+            text-align: center;
+        }
+        
+        #controls {
+            margin-top: 15px;
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+        
+        #reset-btn {
+            background: #4a4a4a;
+            color: #fff;
+            border: none;
+            padding: 8px 20px;
+            border-radius: 6px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        #reset-btn:hover {
+            background: #5a5a5a;
+            transform: translateY(-1px);
+        }
+        
+        #reset-btn:active {
+            transform: translateY(0);
+        }
+    </style>
+</head>
+<body>
+    <div id="gif-container">
+        <img id="gif-image" src="" alt="GIF to measure">
+        <div id="timer-display">Click to start timer</div>
+    </div>
+    
+    <div id="instructions">
+        Click once to start the timer, click again to stop and measure elapsed time
+    </div>
+    
+    <div id="controls">
+        <button id="reset-btn">Reset Timer</button>
+    </div>
+
+    <script>
+        // ====================================================================
+        // CONFIGURATION - Change this URL to use a different GIF
+        // ====================================================================
+        const GIF_URL = "https://aops-curriculum.github.io/Pixel-Measure/Images/10_script_pendulum_20m_125g_5d.gif";
+        // Example URLs you can try:
+        // "https://media.giphy.com/media/3o7TKSjRrfIPjeiVyM/giphy.gif" - spinning globe
+        // "https://media.giphy.com/media/l0HlNaQ6gWfllcjDO/giphy.gif" - pendulum
+        // "https://media.giphy.com/media/3ohzdOrcdpiD26TPt6/giphy.gif" - bouncing ball
+        // ====================================================================
+        
+        // Elements
+        const gifContainer = document.getElementById('gif-container');
+        const gifImage = document.getElementById('gif-image');
+        const timerDisplay = document.getElementById('timer-display');
+        const resetBtn = document.getElementById('reset-btn');
+        
+        // Timer state
+        let isTimerActive = false;
+        let timerStartTime = null;
+        let timerInterval = null;
+        let timerDot = null;
+        
+        // Load the GIF
+        gifImage.src = GIF_URL;
+        
+        // Force GIF to restart when loaded
+        gifImage.onload = function() {
+            // Force reload to ensure GIF plays from beginning
+            const timestamp = new Date().getTime();
+            gifImage.src = GIF_URL + '?t=' + timestamp;
+        };
+        
+        // Handle clicks on the GIF container
+        gifContainer.addEventListener('click', function(event) {
+            // Prevent if clicking on timer display
+            if (event.target === timerDisplay) return;
+            
+            // Get click position relative to container
+            const rect = gifContainer.getBoundingClientRect();
+            const x = event.clientX - rect.left;
+            const y = event.clientY - rect.top;
+            
+            if (!isTimerActive) {
+                // First click - start timer
+                startTimer(x, y);
+            } else {
+                // Second click - stop timer
+                stopTimer();
+            }
+        });
+        
+        // Start timer function
+        function startTimer(x, y) {
+            // Remove any existing dot
+            if (timerDot) {
+                timerDot.remove();
+            }
+            
+            // Create new timer dot at click position
+            timerDot = document.createElement('div');
+            timerDot.className = 'timer-dot';
+            timerDot.style.left = (x - 5) + 'px'; // Center the dot
+            timerDot.style.top = (y - 5) + 'px';
+            gifContainer.appendChild(timerDot);
+            
+            // Start the timer
+            timerStartTime = Date.now();
+            isTimerActive = true;
+            
+            // Update display
+            timerDisplay.style.color = '#ff0000';
+            timerDisplay.textContent = 'Timer: 0.000s';
+            
+            // Start updating timer
+            timerInterval = setInterval(updateTimer, 10);
+        }
+        
+        // Update timer display
+        function updateTimer() {
+            if (isTimerActive && timerStartTime) {
+                const elapsed = (Date.now() - timerStartTime) / 1000;
+                timerDisplay.textContent = `Timer: ${elapsed.toFixed(3)}s`;
+            }
+        }
+        
+        // Stop timer function
+        function stopTimer() {
+            if (!isTimerActive) return;
+            
+            // Stop the timer
+            isTimerActive = false;
+            clearInterval(timerInterval);
+            
+            // Calculate final time
+            const finalTime = (Date.now() - timerStartTime) / 1000;
+            
+            // Update display
+            timerDisplay.style.color = '#00ff00';
+            timerDisplay.textContent = `Final time: ${finalTime.toFixed(3)}s`;
+            
+            // Fade out the dot
+            if (timerDot) {
+                timerDot.classList.add('fade-out');
+                setTimeout(() => {
+                    if (timerDot) {
+                        timerDot.remove();
+                        timerDot = null;
+                    }
+                }, 1000);
+            }
+        }
+        
+        // Reset timer function
+        function resetTimer() {
+            // Stop any active timer
+            if (isTimerActive) {
+                clearInterval(timerInterval);
+            }
+            
+            // Reset state
+            isTimerActive = false;
+            timerStartTime = null;
+            
+            // Remove dot if exists
+            if (timerDot) {
+                timerDot.remove();
+                timerDot = null;
+            }
+            
+            // Reset display
+            timerDisplay.style.color = '#ff6666';
+            timerDisplay.textContent = 'Click to start timer';
+            
+            // Reload GIF to restart it
+            const timestamp = new Date().getTime();
+            gifImage.src = GIF_URL + '?t=' + timestamp;
+        }
+        
+        // Reset button handler
+        resetBtn.addEventListener('click', resetTimer);
+        
+        // Keyboard shortcuts
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'r' || event.key === 'R') {
+                resetTimer();
+            } else if (event.key === ' ') {
+                event.preventDefault();
+                // Simulate click at center if space is pressed
+                if (!isTimerActive) {
+                    startTimer(300, 300);
+                } else {
+                    stopTimer();
+                }
+            }
+        });
+    </script>
+</body>
+</html>

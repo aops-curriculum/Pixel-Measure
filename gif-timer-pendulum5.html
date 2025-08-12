@@ -235,9 +235,7 @@
         
         // Handle clicks on the GIF container
         gifContainer.addEventListener('click', function(event) {
-            // Prevent if clicking on timer display
-            if (event.target === timerDisplay) return;
-            
+
             // Get click position relative to container
             const rect = gifContainer.getBoundingClientRect();
             const x = event.clientX - rect.left;

@@ -49,7 +49,7 @@ body{margin:0;padding:20px;font-family:Arial,sans-serif;background:#f0f0f0;displ
    MAGNIFIER CONFIG: enable floating loupe or static panel.
    ======================================================================= */
 const IMAGE_URL            = "https://aops-curriculum.github.io/Pixel-Measure/Images/10_script_neville_court_audio_pixel.jpg";
-const CALIBRATION_PIXELS   = 208;   // original-image pixels spanning known distance
+const CALIBRATION_PIXELS   = 207;   // original-image pixels spanning known distance
 const CALIBRATION_DISTANCE = 0.5;    // numeric length of known feature
 const CALIBRATION_UNITS    = "pixels";  // 'ft'|'m'|'cm'|'km'
 const DISPLAY_UNITS        = "seconds"; // 'ft_in'|'ft_dec'|'m'|'cm'|'km'|'px'
@@ -116,7 +116,7 @@ let isDragging=false;let startPos=null;let currentPos=null;
 let imageScale=1;let imageOffsetX=0;let imageOffsetY=0;let imageDrawn=false;let loadedImg=null;
 
 /* display the unit info */
-function displayUnitsLabel(){switch(DISPLAY_UNITS){case "ft_in":return "feet & inches";case "ft_dec":return "decimal feet";case "m":return "meters";case "cm":return "centimeters";case "km":return "kilometers";case "px":return "pixels";case "seconds":return "s";default:return DISPLAY_UNITS;}}
+function displayUnitsLabel(){switch(DISPLAY_UNITS){case "ft_in":return "feet & inches";case "ft_dec":return "decimal feet";case "m":return "meters";case "cm":return "centimeters";case "km":return "kilometers";case "px":return "pixels";case "seconds":return "time in seconds";default:return DISPLAY_UNITS;}}
 instructions.textContent=`Click and drag to measure (${displayUnitsLabel()}).`;
 
 /* load image */
@@ -138,7 +138,7 @@ case "m":return `${toFixedTrim(meters,M_PRECISION)} m`;
 case "cm":return `${toFixedTrim(meters*100,CM_PRECISION)} cm`;
 case "km":return `${toFixedTrim(meters/1000,KM_PRECISION)} km`;
 case "px":return `${toFixedTrim(distOrigPx,PX_PRECISION)} px`;
-default:return `${toFixedTrim(meters,M_PRECISION)} m`;}}
+default:return `${toFixedTrim(meters,M_PRECISION)} s`;}}
 
 /* draw measurement */
 function drawMeasurement(){measureCtx.clearRect(0,0,canvasWidth,canvasHeight);if(!startPos||!currentPos)return;const dx=currentPos.x-startPos.x;const dy=currentPos.y-startPos.y;const distancePixelsDisplay=Math.sqrt(dx*dx+dy*dy);const angle=Math.atan2(dy,dx);measureCtx.strokeStyle="red";measureCtx.lineWidth=2;measureCtx.beginPath();measureCtx.moveTo(startPos.x,startPos.y);measureCtx.lineTo(currentPos.x,currentPos.y);measureCtx.stroke();const arrowLength=15;const arrowAngle=Math.PI/6;function drawArrowhead(x,y,dir){measureCtx.fillStyle="red";measureCtx.beginPath();measureCtx.moveTo(x,y);measureCtx.lineTo(x-arrowLength*Math.cos(dir-arrowAngle),y-arrowLength*Math.sin(dir-arrowAngle));measureCtx.lineTo(x-arrowLength*Math.cos(dir+arrowAngle),y-arrowLength*Math.sin(dir+arrowAngle));measureCtx.closePath();measureCtx.fill();}drawArrowhead(startPos.x,startPos.y,angle+Math.PI);drawArrowhead(currentPos.x,currentPos.y,angle);const labelStr=formatDistanceFromDisplayPixels(distancePixelsDisplay);label.textContent=labelStr;const midX=(startPos.x+currentPos.x)/2;const midY=(startPos.y+currentPos.y)/2;const labelAngle=angle+Math.PI/2;const offsetDistance=20;const offsetX=Math.cos(labelAngle)*offsetDistance;const offsetY=Math.sin(labelAngle)*offsetDistance;label.style.display="block";const lw=label.offsetWidth||80;const lh=label.offsetHeight||20;label.style.left=(midX+offsetX-lw/2)+"px";label.style.top=(midY+offsetY-lh/2)+"px";}

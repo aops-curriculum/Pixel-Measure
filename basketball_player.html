@@ -9,7 +9,6 @@ body{margin:0;padding:20px;font-family:Arial,sans-serif;background:#f0f0f0;displ
 #canvas-container{position:relative;display:inline-block;background:#fff;box-shadow:0 0 10px rgba(0,0,0,.1)}
 #measurement-canvas{position:absolute;top:0;left:0;cursor:crosshair}
 #image-canvas{display:block}
-#instructions{margin-top:10px;font-size:14px;color:#333}
 #measurement-label{position:absolute;background-color:rgba(255,255,255,.9);padding:4px 8px;border-radius:4px;font-size:14px;color:red;pointer-events:none;display:none;border:1px solid rgba(255,0,0,.3);white-space:nowrap}
 /* floating magnifier */
 #magnifier-floating{position:fixed;z-index:1000;pointer-events:none;display:none;border:1px solid #000;background:#fff;image-rendering:pixelated;}
@@ -25,7 +24,6 @@ body{margin:0;padding:20px;font-family:Arial,sans-serif;background:#f0f0f0;displ
     <canvas id="measurement-canvas"></canvas>
     <div id="measurement-label">0</div>
 </div>
-<div id="instructions">Click and drag to measure distances</div>
 <!-- static magnifier container (used when USE_FLOATING_MAGNIFIER=false) -->
 <div id="magnifier-static-wrapper">
     <canvas id="magnifier-static" width="128" height="128"></canvas>
@@ -69,10 +67,9 @@ const MAG_CROSSHAIR_SZ = 6;   // half-length (in dest px) of crosshair arms
 const MAG_CANVAS_SIZE  = MAG_SRC_SIZE * MAG_FACTOR; // computed dimension in CSS pixels
 
 /* =======================================================================
-   CANVAS SIZE (display only) — change if desired
+   MAX CANVAS SIZE
    ======================================================================= */
-const canvasWidth  = 650;
-const canvasHeight = 650;
+const MAX_DIMENSION = 600; // Maximum width or height in pixels
 
 /* =======================================================================
    INTERNALS — no need to edit below for normal use
@@ -86,7 +83,6 @@ const imageCanvas=document.getElementById("image-canvas");
 const measureCanvas=document.getElementById("measurement-canvas");
 const container=document.getElementById("canvas-container");
 const label=document.getElementById("measurement-label");
-const instructions=document.getElementById("instructions");
 const imageCtx=imageCanvas.getContext("2d");
 const measureCtx=measureCanvas.getContext("2d");
 
@@ -105,22 +101,34 @@ magFloatingCanvas.height=magStaticCanvas.height=MAG_CANVAS_SIZE;
 magFloatingCtx.imageSmoothingEnabled=false;
 magStaticCtx.imageSmoothingEnabled=false;
 
-/* set main canvas sizes */
-imageCanvas.width=canvasWidth;imageCanvas.height=canvasHeight;
-measureCanvas.width=canvasWidth;measureCanvas.height=canvasHeight;
-
 /* measurement state */
 let isDragging=false;let startPos=null;let currentPos=null;
 
 /* image scale bookkeeping */
 let imageScale=1;let imageOffsetX=0;let imageOffsetY=0;let imageDrawn=false;let loadedImg=null;
 
-/* display the unit info */
-function displayUnitsLabel(){switch(DISPLAY_UNITS){case "ft_in":return "feet & inches";case "ft_dec":return "decimal feet";case "m":return "meters";case "cm":return "centimeters";case "km":return "kilometers";case "px":return "pixels";default:return DISPLAY_UNITS;}}
-instructions.textContent=`Click and drag to measure distance (${displayUnitsLabel()}).`;
+/* canvas dimensions - will be set when image loads */
+let canvasWidth=MAX_DIMENSION;
+let canvasHeight=MAX_DIMENSION;
 
 /* load image */
-function loadImage(url){measureCtx.clearRect(0,0,canvasWidth,canvasHeight);label.style.display="none";imageDrawn=false;const img=new Image();let corsAttempted=false;img.onload=function(){loadedImg=img;imageScale=Math.min(canvasWidth/img.width,canvasHeight/img.height);const scaledWidth=img.width*imageScale;const scaledHeight=img.height*imageScale;imageOffsetX=(canvasWidth-scaledWidth)/2;imageOffsetY=(canvasHeight-scaledHeight)/2;imageCtx.fillStyle="white";imageCtx.fillRect(0,0,canvasWidth,canvasHeight);imageCtx.drawImage(img,imageOffsetX,imageOffsetY,scaledWidth,scaledHeight);imageDrawn=true;};img.onerror=function(){if(!corsAttempted){corsAttempted=true;console.log("Direct load failed, retrying via CORS proxy…");img.src="https://corsproxy.io/?"+encodeURIComponent(url);}else{imageCtx.fillStyle="#f5f5f5";imageCtx.fillRect(0,0,canvasWidth,canvasHeight);imageCtx.fillStyle="#333";imageCtx.font="16px Arial";imageCtx.textAlign="center";imageCtx.fillText("Failed to load image due to CORS policy",canvasWidth/2,canvasHeight/2-40);}};img.src=url;}
+function loadImage(url){measureCtx.clearRect(0,0,canvasWidth,canvasHeight);label.style.display="none";imageDrawn=false;const img=new Image();let corsAttempted=false;img.onload=function(){loadedImg=img;
+// Calculate scale to fit within MAX_DIMENSION while preserving aspect ratio
+imageScale=Math.min(MAX_DIMENSION/img.width,MAX_DIMENSION/img.height,1);
+// Calculate the actual canvas dimensions based on scaled image
+canvasWidth=Math.round(img.width*imageScale);
+canvasHeight=Math.round(img.height*imageScale);
+// Set canvas sizes to match the scaled image exactly
+imageCanvas.width=canvasWidth;
+imageCanvas.height=canvasHeight;
+measureCanvas.width=canvasWidth;
+measureCanvas.height=canvasHeight;
+// No offset needed since canvas matches image size exactly
+imageOffsetX=0;
+imageOffsetY=0;
+// Draw the image filling the entire canvas
+imageCtx.drawImage(img,0,0,canvasWidth,canvasHeight);
+imageDrawn=true;};img.onerror=function(){if(!corsAttempted){corsAttempted=true;console.log("Direct load failed, retrying via CORS proxy…");img.src="https://corsproxy.io/?"+encodeURIComponent(url);}else{imageCtx.fillStyle="#f5f5f5";imageCtx.fillRect(0,0,canvasWidth,canvasHeight);imageCtx.fillStyle="#333";imageCtx.font="16px Arial";imageCtx.textAlign="center";imageCtx.fillText("Failed to load image due to CORS policy",canvasWidth/2,canvasHeight/2-40);}};img.src=url;}
 loadImage(IMAGE_URL);
 
 /* mouse helpers */

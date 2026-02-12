@@ -1,242 +1,190 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pixel Measuring Tool</title>
-    <style>
-        body {
-            margin: 0;
-            padding: 20px;
-            font-family: Arial, sans-serif;
-            background-color: #f0f0f0;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
-        
-        #canvas-container {
-            position: relative;
-            display: inline-block;
-            background-color: white;
-            box-shadow: 0 0 10px rgba(0,0,0,0.1);
-        }
-        
-        #measurement-canvas {
-            position: absolute;
-            top: 0;
-            left: 0;
-            cursor: crosshair;
-        }
-        
-        #image-canvas {
-            display: block;
-        }
-        
-        #instructions {
-            margin-top: 10px;
-            font-size: 14px;
-            color: #333;
-        }
-        
-        #measurement-label {
-            position: absolute;
-            background-color: rgba(255, 255, 255, 0.9);
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 14px;
-            color: red;
-            pointer-events: none;
-            display: none;
-            border: 1px solid rgba(255, 0, 0, 0.3);
-        }
-    </style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Pixel Measuring Tool (Multi-Units + Magnifier)</title>
+<style>
+body{margin:0;padding:0 20px 20px 20px;font-family:Arial,sans-serif;background:#f0f0f0;display:flex;flex-direction:column;align-items:center}
+#canvas-container{position:relative;display:inline-block;background:#fff;box-shadow:0 0 10px rgba(0,0,0,.1)}
+#measurement-canvas{position:absolute;top:0;left:0;cursor:crosshair}
+#image-canvas{display:block}
+#measurement-label{position:absolute;background-color:rgba(255,255,255,.9);padding:4px 8px;border-radius:4px;font-size:14px;color:red;pointer-events:none;display:none;border:1px solid rgba(255,0,0,.3);white-space:nowrap}
+/* floating magnifier */
+#magnifier-floating{position:fixed;z-index:1000;pointer-events:none;display:none;border:1px solid #000;background:#fff;image-rendering:pixelated;}
+/* static magnifier panel */
+#magnifier-static-wrapper{margin-top:12px;display:none;flex-direction:column;align-items:center;font-size:12px;color:#333}
+#magnifier-static{border:1px solid #000;background:#fff;image-rendering:pixelated;}
+#magnifier-coords{margin-top:4px;font-family:monospace;font-size:12px;color:#333}
+</style>
 </head>
 <body>
-    <div id="canvas-container">
-        <canvas id="image-canvas"></canvas>
-        <canvas id="measurement-canvas"></canvas>
-        <div id="measurement-label">0 pixels</div>
-    </div>
-    <div id="instructions">Click and drag to measure distances</div>
+<div id="canvas-container">
+    <canvas id="image-canvas"></canvas>
+    <canvas id="measurement-canvas"></canvas>
+    <div id="measurement-label">0</div>
+</div>
+<!-- static magnifier container (used when USE_FLOATING_MAGNIFIER=false) -->
+<div id="magnifier-static-wrapper">
+    <canvas id="magnifier-static" width="128" height="128"></canvas>
+    <div id="magnifier-coords">x:0 y:0</div>
+</div>
+<!-- floating magnifier canvas (used when USE_FLOATING_MAGNIFIER=true) -->
+<canvas id="magnifier-floating" width="128" height="128"></canvas>
 
-    <script>
-        // CONFIGURATION SECTION - Adjust these values for your needs
-        const canvasWidth = 300;  // Canvas width in pixels
-        const canvasHeight = 650; // Canvas height in pixels
-        
-        // CHANGE THE IMAGE URL HERE
-        const imageURL = "http://cdn.artofproblemsolving.com/school/crypt/00540-e12599cedadfdc40445dca22ddd227e6417975d2/files/11_script_guitar_fretboard_counted.png";
-        
-        // Get elements
-        const imageCanvas = document.getElementById('image-canvas');
-        const measureCanvas = document.getElementById('measurement-canvas');
-        const container = document.getElementById('canvas-container');
-        const label = document.getElementById('measurement-label');
-        
-        const imageCtx = imageCanvas.getContext('2d');
-        const measureCtx = measureCanvas.getContext('2d');
-        
-        // Set canvas sizes
-        imageCanvas.width = canvasWidth;
-        imageCanvas.height = canvasHeight;
-        measureCanvas.width = canvasWidth;
-        measureCanvas.height = canvasHeight;
-        
-        // Measurement state
-        let isDragging = false;
-        let startPos = null;
-        let currentPos = null;
-        
-        // Function to load an image
-        function loadImage(url) {
-            // Clear any existing measurements
-            measureCtx.clearRect(0, 0, canvasWidth, canvasHeight);
-            label.style.display = 'none';
-            
-            const img = new Image();
-            
-            // Try loading without CORS first (works for many images)
-            let corsAttempted = false;
-            
-            img.onload = function() {
-                // Calculate scaling to fit the image in the canvas while maintaining aspect ratio
-                const scale = Math.min(canvasWidth / img.width, canvasHeight / img.height);
-                const scaledWidth = img.width * scale;
-                const scaledHeight = img.height * scale;
-                
-                // Center the image
-                const x = (canvasWidth - scaledWidth) / 2;
-                const y = (canvasHeight - scaledHeight) / 2;
-                
-                // Draw the image
-                imageCtx.fillStyle = 'white';
-                imageCtx.fillRect(0, 0, canvasWidth, canvasHeight);
-                imageCtx.drawImage(img, x, y, scaledWidth, scaledHeight);
-            };
-            
-            img.onerror = function() {
-                if (!corsAttempted) {
-                    // Try with CORS proxy
-                    corsAttempted = true;
-                    console.log('Direct loading failed, trying CORS proxy...');
-                    img.src = 'https://corsproxy.io/?' + encodeURIComponent(url);
-                } else {
-                    // If both methods fail, show error with instructions
-                    imageCtx.fillStyle = '#f5f5f5';
-                    imageCtx.fillRect(0, 0, canvasWidth, canvasHeight);
-                    imageCtx.fillStyle = '#333';
-                    imageCtx.font = '16px Arial';
-                    imageCtx.textAlign = 'center';
-                    imageCtx.fillText('Failed to load image due to CORS policy', canvasWidth / 2, canvasHeight / 2 - 40);
-                }
-            };
-            
-            // Start loading
-            img.src = url;
-        }
-        
-        // Load default image on startup
-        loadImage(imageURL);
-        
-        // Mouse event handlers
-        function getMousePos(e) {
-            const rect = measureCanvas.getBoundingClientRect();
-            return {
-                x: e.clientX - rect.left,
-                y: e.clientY - rect.top
-            };
-        }
-        
-        function drawMeasurement() {
-            // Clear the canvas
-            measureCtx.clearRect(0, 0, canvasWidth, canvasHeight);
-            
-            if (!startPos || !currentPos) return;
-            
-            // Calculate distance and angle
-            const dx = currentPos.x - startPos.x;
-            const dy = currentPos.y - startPos.y;
-            const distance = Math.sqrt(dx * dx + dy * dy);
-            const angle = Math.atan2(dy, dx);
-            
-            // Draw the line
-            measureCtx.strokeStyle = 'red';
-            measureCtx.lineWidth = 2;
-            measureCtx.beginPath();
-            measureCtx.moveTo(startPos.x, startPos.y);
-            measureCtx.lineTo(currentPos.x, currentPos.y);
-            measureCtx.stroke();
-            
-            // Arrowhead size
-            const arrowLength = 15;
-            const arrowAngle = Math.PI / 6; // 30 degrees
-            
-            // Function to draw arrowhead
-            function drawArrowhead(x, y, direction) {
-                measureCtx.fillStyle = 'red';
-                measureCtx.beginPath();
-                measureCtx.moveTo(x, y);
-                measureCtx.lineTo(
-                    x - arrowLength * Math.cos(direction - arrowAngle),
-                    y - arrowLength * Math.sin(direction - arrowAngle)
-                );
-                measureCtx.lineTo(
-                    x - arrowLength * Math.cos(direction + arrowAngle),
-                    y - arrowLength * Math.sin(direction + arrowAngle)
-                );
-                measureCtx.closePath();
-                measureCtx.fill();
-            }
-            
-            // Draw arrowheads at both ends
-            drawArrowhead(startPos.x, startPos.y, angle + Math.PI); // Point away from end
-            drawArrowhead(currentPos.x, currentPos.y, angle); // Point away from start
-            
-            // Update label
-            label.textContent = Math.round(distance) + ' pixels';
-            
-            // Position label at midpoint, slightly offset from the line
-            const midX = (startPos.x + currentPos.x) / 2;
-            const midY = (startPos.y + currentPos.y) / 2;
-            
-            // Calculate perpendicular offset
-            const labelAngle = Math.atan2(dy, dx) + Math.PI / 2;
-            const offsetDistance = 20;
-            const offsetX = Math.cos(labelAngle) * offsetDistance;
-            const offsetY = Math.sin(labelAngle) * offsetDistance;
-            
-            // Position the label
-            label.style.left = (midX + offsetX - 40) + 'px';
-            label.style.top = (midY + offsetY - 15) + 'px';
-            label.style.display = 'block';
-        }
-        
-        measureCanvas.addEventListener('mousedown', function(e) {
-            isDragging = true;
-            startPos = getMousePos(e);
-            currentPos = startPos;
-            drawMeasurement();
-        });
-        
-        measureCanvas.addEventListener('mousemove', function(e) {
-            if (isDragging) {
-                currentPos = getMousePos(e);
-                drawMeasurement();
-            }
-        });
-        
-        measureCanvas.addEventListener('mouseup', function(e) {
-            isDragging = false;
-        });
-        
-        // Also handle mouse leave to stop dragging
-        measureCanvas.addEventListener('mouseleave', function(e) {
-            if (isDragging) {
-                isDragging = false;
-            }
-        });
-    </script>
+<script>
+/* =======================================================================
+   USER CONFIG — EDIT THESE WHEN COPYING THIS FILE FOR A NEW IMAGE
+   -----------------------------------------------------------------------
+   IMAGE_URL: image to load.
+   CALIBRATION_PIXELS: # of ORIGINAL image pixels spanning known real length.
+   CALIBRATION_DISTANCE: numeric length of that feature.
+   CALIBRATION_UNITS: 'ft'|'m'|'cm'|'km'
+   DISPLAY_UNITS: 'ft_in'|'ft_dec'|'m'|'cm'|'km'|'px'
+   -----------------------------------------------------------------------
+   PRECISION controls (# decimals) for the various output modes.
+   -----------------------------------------------------------------------
+   MAGNIFIER CONFIG: enable floating loupe or static panel.
+   ======================================================================= */
+const IMAGE_URL            = "http://cdn.artofproblemsolving.com/school/crypt/00540-e12599cedadfdc40445dca22ddd227e6417975d2/files/11_script_guitar_fretboard_counted.png";
+const CALIBRATION_PIXELS   = 604;   // original-image pixels spanning known distance
+const CALIBRATION_DISTANCE = 64.6;    // numeric length of known feature
+const CALIBRATION_UNITS    = "cm";  // 'ft'|'m'|'cm'|'km'
+const DISPLAY_UNITS        = "cm"; // 'ft_in'|'ft_dec'|'m'|'cm'|'km'|'px'
+
+// Decimal precision controls
+const FT_DEC_PRECISION = 1; // e.g. 12.3 ft
+const M_PRECISION      = 2; // 0.12 m
+const CM_PRECISION     = 1; // 12.3 cm
+const KM_PRECISION     = 1; // 2.1 km
+const PX_PRECISION     = 0; // 123 px
+
+/* =================== MAGNIFIER CONFIG ==================== */
+const USE_FLOATING_MAGNIFIER = true; // true=floating loupe near cursor; false=static panel below
+const MAG_FACTOR       = 8;   // zoom scale (integer recommended)
+const MAG_SRC_SIZE     = 16;  // side length (in ORIGINAL image px) sampled for magnifier view
+const MAG_CROSSHAIR_SZ = 6;   // half-length (in dest px) of crosshair arms
+const MAG_CANVAS_SIZE  = MAG_SRC_SIZE * MAG_FACTOR; // computed dimension in CSS pixels
+
+/* =======================================================================
+   MAX CANVAS SIZE
+   ======================================================================= */
+const MAX_DIMENSION = 600; // Maximum width or height in pixels
+
+/* =======================================================================
+   INTERNALS — no need to edit below for normal use
+   ======================================================================= */
+const UNIT_TO_METERS={ft:0.3048,m:1,cm:0.01,km:1000};
+function calibrationMetersPerPixel(){const f=UNIT_TO_METERS[CALIBRATION_UNITS];if(!f){console.warn("Invalid CALIBRATION_UNITS; defaulting to meters.");return CALIBRATION_DISTANCE/CALIBRATION_PIXELS;}return(CALIBRATION_DISTANCE*f)/CALIBRATION_PIXELS;}
+const METERS_PER_PIXEL_ORIG=calibrationMetersPerPixel();
+
+/* elements */
+const imageCanvas=document.getElementById("image-canvas");
+const measureCanvas=document.getElementById("measurement-canvas");
+const container=document.getElementById("canvas-container");
+const label=document.getElementById("measurement-label");
+const imageCtx=imageCanvas.getContext("2d");
+const measureCtx=measureCanvas.getContext("2d");
+
+const magFloatingCanvas=document.getElementById("magnifier-floating");
+const magFloatingCtx=magFloatingCanvas.getContext("2d");
+const magStaticWrapper=document.getElementById("magnifier-static-wrapper");
+const magStaticCanvas=document.getElementById("magnifier-static");
+const magStaticCtx=magStaticCanvas.getContext("2d");
+const magCoordsDiv=document.getElementById("magnifier-coords");
+
+// ensure magnifier canvas dims align with config
+magFloatingCanvas.width=magStaticCanvas.width=MAG_CANVAS_SIZE;
+magFloatingCanvas.height=magStaticCanvas.height=MAG_CANVAS_SIZE;
+
+// disable smoothing so pixels stay crisp when zoomed
+magFloatingCtx.imageSmoothingEnabled=false;
+magStaticCtx.imageSmoothingEnabled=false;
+
+/* measurement state */
+let isDragging=false;let startPos=null;let currentPos=null;
+
+/* image scale bookkeeping */
+let imageScale=1;let imageOffsetX=0;let imageOffsetY=0;let imageDrawn=false;let loadedImg=null;
+
+/* canvas dimensions - will be set when image loads */
+let canvasWidth=MAX_DIMENSION;
+let canvasHeight=MAX_DIMENSION;
+
+/* load image */
+function loadImage(url){measureCtx.clearRect(0,0,canvasWidth,canvasHeight);label.style.display="none";imageDrawn=false;const img=new Image();let corsAttempted=false;img.onload=function(){loadedImg=img;
+// Calculate scale to fit within MAX_DIMENSION while preserving aspect ratio
+imageScale=Math.min(MAX_DIMENSION/img.width,MAX_DIMENSION/img.height,1);
+// Calculate the actual canvas dimensions based on scaled image
+canvasWidth=Math.round(img.width*imageScale);
+canvasHeight=Math.round(img.height*imageScale);
+// Set canvas sizes to match the scaled image exactly
+imageCanvas.width=canvasWidth;
+imageCanvas.height=canvasHeight;
+measureCanvas.width=canvasWidth;
+measureCanvas.height=canvasHeight;
+// No offset needed since canvas matches image size exactly
+imageOffsetX=0;
+imageOffsetY=0;
+// Draw the image filling the entire canvas
+imageCtx.drawImage(img,0,0,canvasWidth,canvasHeight);
+imageDrawn=true;};img.onerror=function(){if(!corsAttempted){corsAttempted=true;console.log("Direct load failed, retrying via CORS proxy…");img.src="https://corsproxy.io/?"+encodeURIComponent(url);}else{imageCtx.fillStyle="#f5f5f5";imageCtx.fillRect(0,0,canvasWidth,canvasHeight);imageCtx.fillStyle="#333";imageCtx.font="16px Arial";imageCtx.textAlign="center";imageCtx.fillText("Failed to load image due to CORS policy",canvasWidth/2,canvasHeight/2-40);}};img.src=url;}
+loadImage(IMAGE_URL);
+
+/* mouse helpers */
+function getMousePos(e){const r=measureCanvas.getBoundingClientRect();return{x:e.clientX-r.left,y:e.clientY-r.top};}
+
+/* convert displayed canvas coords to ORIGINAL image pixels */
+function displayedToOriginalPx(pt){return{x:(pt.x-imageOffsetX)/imageScale,y:(pt.y-imageOffsetY)/imageScale};}
+
+/* formatting */
+function toFixedTrim(n,prec){return(+n).toFixed(prec).replace(/\.0+$/,'').replace(/(\.[0-9]*?)0+$/,'$1').replace(/\.$/,'');}
+
+function formatDistanceFromDisplayPixels(displayDistancePx){const distOrigPx=displayDistancePx/imageScale;const meters=distOrigPx*METERS_PER_PIXEL_ORIG;switch(DISPLAY_UNITS){case "ft_in":{const totalFeet=meters/UNIT_TO_METERS.ft;let feet=Math.floor(totalFeet);let inches=Math.round((totalFeet-feet)*12);if(inches===12){feet+=1;inches=0;}return `${feet}' ${inches}"`;}
+case "ft_dec":{const ft=meters/UNIT_TO_METERS.ft;return `${toFixedTrim(ft,FT_DEC_PRECISION)} ft`;}
+case "m":return `${toFixedTrim(meters,M_PRECISION)} m`;
+case "cm":return `${toFixedTrim(meters*100,CM_PRECISION)} cm`;
+case "km":return `${toFixedTrim(meters/1000,KM_PRECISION)} km`;
+case "px":return `${toFixedTrim(distOrigPx,PX_PRECISION)} px`;
+default:return `${toFixedTrim(meters,M_PRECISION)} m`;}}
+
+/* draw measurement */
+function drawMeasurement(){measureCtx.clearRect(0,0,canvasWidth,canvasHeight);if(!startPos||!currentPos)return;const dx=currentPos.x-startPos.x;const dy=currentPos.y-startPos.y;const distancePixelsDisplay=Math.sqrt(dx*dx+dy*dy);const angle=Math.atan2(dy,dx);measureCtx.strokeStyle="red";measureCtx.lineWidth=2;measureCtx.beginPath();measureCtx.moveTo(startPos.x,startPos.y);measureCtx.lineTo(currentPos.x,currentPos.y);measureCtx.stroke();const arrowLength=15;const arrowAngle=Math.PI/6;function drawArrowhead(x,y,dir){measureCtx.fillStyle="red";measureCtx.beginPath();measureCtx.moveTo(x,y);measureCtx.lineTo(x-arrowLength*Math.cos(dir-arrowAngle),y-arrowLength*Math.sin(dir-arrowAngle));measureCtx.lineTo(x-arrowLength*Math.cos(dir+arrowAngle),y-arrowLength*Math.sin(dir+arrowAngle));measureCtx.closePath();measureCtx.fill();}drawArrowhead(startPos.x,startPos.y,angle+Math.PI);drawArrowhead(currentPos.x,currentPos.y,angle);const labelStr=formatDistanceFromDisplayPixels(distancePixelsDisplay);label.textContent=labelStr;const midX=(startPos.x+currentPos.x)/2;const midY=(startPos.y+currentPos.y)/2;const labelAngle=angle+Math.PI/2;const offsetDistance=20;const offsetX=Math.cos(labelAngle)*offsetDistance;const offsetY=Math.sin(labelAngle)*offsetDistance;label.style.display="block";const lw=label.offsetWidth||80;const lh=label.offsetHeight||20;label.style.left=(midX+offsetX-lw/2)+"px";label.style.top=(midY+offsetY-lh/2)+"px";}
+
+/* magnifier draw */
+function drawMagnifierAtDisplayPoint(displayPt){if(!loadedImg)return;const orig=displayedToOriginalPx(displayPt);const half= MAG_SRC_SIZE/2;let sx=Math.round(orig.x-half);let sy=Math.round(orig.y-half);let sw=MAG_SRC_SIZE;let sh=MAG_SRC_SIZE; // adjust if near edge
+if(sx<0){sw+=sx;sx=0;}if(sy<0){sh+=sy;sy=0;}if(sx+sw>loadedImg.width){sw=loadedImg.width-sx;}if(sy+sh>loadedImg.height){sh=loadedImg.height-sy;}
+// clear
+if(USE_FLOATING_MAGNIFIER){magFloatingCtx.clearRect(0,0,MAG_CANVAS_SIZE,MAG_CANVAS_SIZE);}else{magStaticCtx.clearRect(0,0,MAG_CANVAS_SIZE,MAG_CANVAS_SIZE);} 
+// fill background if cropping smaller than expected
+if(sw<=0||sh<=0){return;}
+const destCtx=USE_FLOATING_MAGNIFIER?magFloatingCtx:magStaticCtx;
+destCtx.save();destCtx.imageSmoothingEnabled=false;
+destCtx.fillStyle="#fff";destCtx.fillRect(0,0,MAG_CANVAS_SIZE,MAG_CANVAS_SIZE);
+// draw sampled region scaled
+// scale factors if sw/sh smaller due to edge; maintain pixel aspect
+const scaleX=MAG_CANVAS_SIZE/sw;const scaleY=MAG_CANVAS_SIZE/sh;destCtx.drawImage(loadedImg,sx,sy,sw,sh,0,0,sw*scaleX,sh*scaleY);
+// crosshair at center
+const cx=MAG_CANVAS_SIZE/2;const cy=MAG_CANVAS_SIZE/2;destCtx.strokeStyle='red';destCtx.lineWidth=1;destCtx.beginPath();destCtx.moveTo(cx-MAG_CROSSHAIR_SZ,cy);destCtx.lineTo(cx+MAG_CROSSHAIR_SZ,cy);destCtx.moveTo(cx,cy-MAG_CROSSHAIR_SZ);destCtx.lineTo(cx,cy+MAG_CROSSHAIR_SZ);destCtx.stroke();destCtx.restore();
+// coords readout (static only)
+if(!USE_FLOATING_MAGNIFIER){magCoordsDiv.textContent=`x:${Math.round(orig.x)} y:${Math.round(orig.y)}`;}
+}
+
+/* position floating magnifier near cursor */
+function positionFloatingMagnifier(e){if(!USE_FLOATING_MAGNIFIER)return;const pad=16;const w=MAG_CANVAS_SIZE;const h=MAG_CANVAS_SIZE;let x=e.clientX+pad;let y=e.clientY+pad;const vw=window.innerWidth;const vh=window.innerHeight;if(x+w>vw) x=e.clientX - pad - w; if(y+h>vh) y=e.clientY - pad - h; magFloatingCanvas.style.left=x+"px";magFloatingCanvas.style.top=y+"px";}
+
+/* show/hide magnifier depending on config */
+function showMagnifier(){if(USE_FLOATING_MAGNIFIER){magFloatingCanvas.style.display='block';magStaticWrapper.style.display='none';}else{magFloatingCanvas.style.display='none';magStaticWrapper.style.display='flex';}}
+function hideMagnifier(){if(USE_FLOATING_MAGNIFIER){magFloatingCanvas.style.display='none';}/*static remains visible*/}
+showMagnifier();
+
+/* events */
+measureCanvas.addEventListener("mousedown",e=>{isDragging=true;startPos=getMousePos(e);currentPos=startPos;drawMeasurement();});
+measureCanvas.addEventListener("mousemove",e=>{const pt=getMousePos(e);if(isDragging){currentPos=pt;drawMeasurement();}drawMagnifierAtDisplayPoint(pt);positionFloatingMagnifier(e);});
+measureCanvas.addEventListener("mouseup",()=>{isDragging=false;});
+measureCanvas.addEventListener("mouseleave",()=>{isDragging=false;hideMagnifier();});
+measureCanvas.addEventListener("mouseenter",()=>{showMagnifier();});
+
+</script>
 </body>
-
 </html>

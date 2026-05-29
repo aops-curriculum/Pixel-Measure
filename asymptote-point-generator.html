@@ -898,8 +898,8 @@ async function askAI(tier) {
     const btnH = document.getElementById('btnHaiku');
     const btnO = document.getElementById('btnOpus');
 
-    const model = tier === 'haiku' ? 'claude-haiku-4-5-20251001' : 'claude-opus-4-6';
-    const label = tier === 'haiku' ? 'Haiku' : 'Opus 4.6';
+    const model = tier === 'haiku' ? 'claude-haiku-4-5-20251001' : 'claude-opus-4-8';
+    const label = tier === 'haiku' ? 'Haiku' : 'Opus 4.8';
 
     btnH.disabled = true; btnO.disabled = true;
     status.className = 'ai-status';

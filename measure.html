@@ -251,7 +251,7 @@ canvas#c{display:block}
 const $ = id => document.getElementById(id);
 const SP = new URLSearchParams(location.search);
 function sp(k, def) { return SP.has(k) ? SP.get(k) : def; }
-function spBool(k, def) { return SP.has(k) ? SP.get(k) !== 'false' : def; }
+function spBool(k, def) { return SP.has(k) ? (SP.get(k) !== 'false' && SP.get(k) !== '0') : def; }
 function spNum(k, def) { return SP.has(k) && isFinite(+SP.get(k)) ? +SP.get(k) : def; }
 const EMBED_H    = spNum('h', 0);      // exact reported height override
 const EMBED_MAXH = spNum('maxh', 0);   // cap on both canvas height and reported height

@@ -294,6 +294,8 @@ if (SP.has('grid') && SP.get('grid') !== 'false') {
 
 // Auto display unit
 if (!S.unit) S.unit = (S.calPx && S.calDist) ? S.calUnit : 'px';
+// Normalize legacy alias used by older sims
+if (S.unit === 'ft_dec') S.unit = 'ft';
 
 // ── Runtime state ─────────────────────────────────────────────────
 let loadedImg = null;
@@ -348,7 +350,7 @@ function fmt(imgPx) {
     if (inch === 12) { ft++; inch = 0; }
     return `${ft}' ${inch}"`;
   }
-  if (u === 'ft')  return `${tr(m / U2M.ft, 1)} ft`;
+  if (u === 'ft' || u === 'ft_dec')  return `${tr(m / U2M.ft, 1)} ft`;
   if (u === 'm')   return `${tr(m, 2)} m`;
   if (u === 'cm')  return `${tr(m * 100, 1)} cm`;
   if (u === 'km')  return `${tr(m / 1000, 3)} km`;

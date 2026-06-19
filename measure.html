@@ -96,6 +96,20 @@ input[type=color]{padding:1px;height:24px;width:100%;cursor:pointer;border-radiu
 canvas#c{display:block}
 #statusbar{font-size:12px;color:#555;font-family:monospace;min-height:18px;text-align:center;white-space:nowrap}
 
+/* ── Zoom control bar ────────────────────────────────────────── */
+#zoom-ctrl-bar{
+  display:none;align-items:center;gap:6px;
+  background:#2a2a2a;border-radius:5px;
+  padding:4px 12px;color:#bbb;font-size:13px;
+}
+#zoom-ctrl-bar button{
+  background:#3a3a3a;border:1px solid #555;color:#ddd;
+  border-radius:3px;padding:2px 10px;cursor:pointer;font-size:15px;line-height:1.3;
+}
+#zoom-ctrl-bar button:hover{background:#4a4a4a;color:#fff}
+#zoom-display{min-width:52px;text-align:center;color:#7ab8ff;font-size:13px;
+  font-weight:bold;font-family:monospace}
+
 /* ── Floating magnifier ─────────────────────────────────────── */
 #mag{
   position:fixed;z-index:1000;pointer-events:none;display:none;
@@ -196,9 +210,19 @@ canvas#c{display:block}
       <div class="sec-title">Features</div>
       <label class="row"><input type="checkbox" id="pi-mag" checked> Floating magnifier</label>
       <label class="row"><input type="checkbox" id="pi-zoom" checked> Scroll to zoom &amp; alt-drag to pan</label>
+      <label class="row"><input type="checkbox" id="pi-zoomctrl"> Zoom control buttons</label>
       <label class="row"><input type="checkbox" id="pi-single"> Single measurement (new drag replaces old)</label>
       <label class="row"><input type="checkbox" id="pi-status" checked> Show status bar</label>
       <label class="row"><input type="checkbox" id="pi-px-display"> Display pixels (match legacy sims — use with max_w=650)</label>
+    </div>
+
+    <div class="sec">
+      <div class="sec-title">Axes</div>
+      <label class="row"><input type="checkbox" id="pi-axes"> Show axes</label>
+      <label class="col">
+        <span class="lbl">Origin (x,y in image px, or "center")</span>
+        <input type="text" id="pi-origin" placeholder="0,0">
+      </label>
     </div>
 
     <div class="sec">
@@ -230,6 +254,12 @@ canvas#c{display:block}
   <div id="main-title"></div>
   <div id="canvas-wrap">
     <canvas id="c"></canvas>
+  </div>
+  <div id="zoom-ctrl-bar">
+    <button id="btn-zoom-out" title="Zoom out">−</button>
+    <span id="zoom-display">1.00×</span>
+    <button id="btn-zoom-in" title="Zoom in">+</button>
+    <button id="btn-zoom-reset-bar" title="Reset zoom &amp; pan">↺ reset</button>
   </div>
   <div id="statusbar"></div>
 </div>
@@ -272,12 +302,15 @@ const S = {
   gridColor: sp('grid_color', '#0064c8'),
   magOn:     spBool('mag', true),
   zoomOn:    spBool('zoom', true),
+  zoomCtrl:  spBool('zoomcontrol', false),
   single:    spBool('single', false),
   statusOn:  spBool('status', true),
-  pxMode:    sp('px', 'image'),   // 'image' = original image px (default); 'display' = canvas px at fit scale
+  pxMode:    sp('px', 'image'),   // 'image' = original image px; 'display' = canvas px at fit scale
   title:     sp('title', ''),
   panelOn:   spBool('panel', true),
   maxW:      parseInt(sp('max_w', '820')) || 820,
+  axesOn:    spBool('axes', false),
+  origin:    sp('origin', '0,0'),
 };
 
 // ?cal=151,11.6,ft  (compact)
@@ -290,9 +323,9 @@ if (SP.has('cal')) {
   }
 }
 // Legacy separate params (also accepted)
-if (!S.calPx && SP.has('cal_px'))   S.calPx   = parseFloat(sp('cal_px', '0')) || 0;
+if (!S.calPx && SP.has('cal_px'))     S.calPx   = parseFloat(sp('cal_px', '0')) || 0;
 if (!S.calDist && SP.has('cal_dist')) S.calDist = parseFloat(sp('cal_dist', '0')) || 0;
-if (SP.has('cal_unit'))             S.calUnit = sp('cal_unit', 'ft');
+if (SP.has('cal_unit'))               S.calUnit = sp('cal_unit', 'ft');
 
 // ?grid=1ft | ?grid=50px | ?grid=false
 if (SP.has('grid') && SP.get('grid') !== 'false') {
@@ -372,19 +405,85 @@ function fmt(imgPx) {
 
 function d(a, b) { return Math.hypot(b.x - a.x, b.y - a.y); }
 
+// ── Axes helpers ──────────────────────────────────────────────────
+function parseOrigin() {
+  const v = S.origin || '0,0';
+  if (v === 'center') return { x: imgW / 2, y: imgH / 2 };
+  const parts = v.split(',');
+  const x = parseFloat(parts[0]);
+  const y = parseFloat(parts[1]);
+  return { x: isNaN(x) ? 0 : x, y: isNaN(y) ? 0 : y };
+}
+
+// Returns { tickPx, fmtTick } for axes drawing.
+// Tries to match the grid spacing; falls back to a smart pixel default.
+function axisTickConfig() {
+  let tickPx = null;
+  let fmtTick;
+
+  if (S.gridUnit !== 'px') {
+    const mpp = mPerImgPx();
+    if (mpp) tickPx = (S.gridN * (U2M[S.gridUnit] || 1)) / mpp;
+  } else if (S.gridN >= 5) {
+    tickPx = S.gridN;
+  }
+
+  if (tickPx && tickPx >= 5) {
+    // Grid-aligned ticks: label shows n * gridN in gridUnit
+    fmtTick = n => {
+      if (n === 0) return '0';
+      const val = n * S.gridN;
+      if (S.gridUnit === 'px') return String(Math.round(val));
+      const absVal = Math.abs(val);
+      const str = absVal === Math.round(absVal) ? String(Math.round(val)) : val.toFixed(1);
+      return str + ' ' + S.gridUnit;
+    };
+  } else {
+    // Smart default: round power-of-10 pixel spacing
+    const raw = Math.pow(10, Math.round(Math.log10(Math.max(imgW, 1) / 8)));
+    tickPx = isFinite(raw) && raw > 0 ? raw : 50;
+    fmtTick = n => n === 0 ? '0' : String(Math.round(n * tickPx)) + ' px';
+  }
+
+  return { tickPx, fmtTick };
+}
+
+// ── Zoom helpers ──────────────────────────────────────────────────
+function doZoom(factor) {
+  const cx = canvasW / 2, cy = canvasH / 2;
+  const nv = Math.max(0.04, Math.min(vs * factor, 80));
+  tx = cx - (cx - tx) * (nv / vs);
+  ty = cy - (cy - ty) * (nv / vs);
+  vs = nv;
+  render();
+  updateZoomDisplay();
+}
+
+function updateZoomDisplay() {
+  const el = $('zoom-display');
+  if (!el) return;
+  el.textContent = vsInit > 0 ? (vs / vsInit).toFixed(2) + '×' : '—';
+}
+
+function updateZoomCtrlBar() {
+  const bar = $('zoom-ctrl-bar');
+  if (bar) bar.style.display = S.zoomCtrl ? 'flex' : 'none';
+}
+
 // ── Rendering ─────────────────────────────────────────────────────
 const MCOLORS = ['#e74c3c','#2980b9','#27ae60','#8e44ad','#e67e22','#16a085','#d35400','#2c3e50'];
 
 function render() {
   ctx.clearRect(0, 0, canvasW, canvasH);
 
-  // Image + grid (image-space transform)
+  // Image-space drawing (grid, axes)
   ctx.save();
   ctx.translate(tx, ty);
   ctx.scale(vs, vs);
   if (loadedImg) {
     ctx.drawImage(loadedImg, 0, 0, imgW, imgH);
     if (S.gridOn) drawGrid();
+    if (S.axesOn) drawAxes();
   } else {
     ctx.fillStyle = '#ccc';
     ctx.fillRect(0, 0, canvasW / vs, canvasH / vs);
@@ -447,6 +546,102 @@ function drawGrid() {
   }
 }
 
+// Draws axes in image-space coordinates.
+// Called inside render()'s ctx.save()/restore() block, so the view transform
+// (translate + scale) is already applied — no inner save needed.
+function drawAxes() {
+  const { x: ox, y: oy } = parseOrigin();
+  const { tickPx, fmtTick } = axisTickConfig();
+
+  const AX  = 'rgba(200,50,50,0.92)';
+  const TL  = 6 / vs;      // tick half-length in image px
+  const AL  = 9 / vs;      // arrowhead size
+  const fs  = Math.max(10 / vs, 1);
+  const showLabels = tickPx * vs >= 18;  // at least 18 screen px between ticks
+
+  ctx.strokeStyle = AX;
+  ctx.lineWidth = 2 / vs;
+
+  // Axis lines (full image width/height)
+  ctx.beginPath();
+  ctx.moveTo(0, oy); ctx.lineTo(imgW, oy);   // x-axis
+  ctx.moveTo(ox, 0); ctx.lineTo(ox, imgH);   // y-axis
+  ctx.stroke();
+
+  // Arrowhead helper (tip at x,y, pointing in direction dx,dy)
+  function arrow(x, y, dx, dy) {
+    ctx.fillStyle = AX;
+    ctx.beginPath();
+    ctx.moveTo(x + dx * AL, y + dy * AL);
+    ctx.lineTo(x + dy * AL * 0.4, y - dx * AL * 0.4);
+    ctx.lineTo(x - dy * AL * 0.4, y + dx * AL * 0.4);
+    ctx.closePath();
+    ctx.fill();
+  }
+  arrow(imgW, oy,  1,  0);  // x-axis: rightward
+  arrow(ox,   0,   0, -1);  // y-axis: upward (toward row 0, the top of the image)
+
+  ctx.lineWidth = 1 / vs;
+  ctx.font = `bold ${fs}px Arial`;
+
+  // X-axis ticks
+  const xn0 = Math.ceil(-ox / tickPx);
+  const xn1 = Math.floor((imgW - ox) / tickPx);
+  for (let n = xn0; n <= xn1; n++) {
+    const xp = ox + n * tickPx;
+    ctx.strokeStyle = AX;
+    ctx.beginPath();
+    ctx.moveTo(xp, oy - TL);
+    ctx.lineTo(xp, oy + TL);
+    ctx.stroke();
+    if (showLabels) {
+      ctx.fillStyle = AX;
+      ctx.textAlign = 'center';
+      // Origin label goes above the axis so it doesn't collide with y-axis labels
+      ctx.textBaseline = n === 0 ? 'bottom' : 'top';
+      ctx.fillText(fmtTick(n), xp, oy + (n === 0 ? -(TL + 2/vs) : TL + 2/vs));
+    }
+  }
+  // 'x' letter near right arrowhead
+  ctx.fillStyle = AX;
+  ctx.font = `italic bold ${fs * 1.2}px Arial`;
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('x', imgW - AL * 2.8, oy - fs * 0.9);
+
+  // Y-axis ticks (n positive = downward in image coords)
+  const yn0 = Math.ceil(-oy / tickPx);
+  const yn1 = Math.floor((imgH - oy) / tickPx);
+  ctx.font = `bold ${fs}px Arial`;
+  for (let n = yn0; n <= yn1; n++) {
+    if (n === 0) continue;  // skip: already labelled by x-axis tick at origin
+    const yp = oy + n * tickPx;
+    ctx.strokeStyle = AX;
+    ctx.beginPath();
+    ctx.moveTo(ox - TL, yp);
+    ctx.lineTo(ox + TL, yp);
+    ctx.stroke();
+    if (showLabels) {
+      ctx.fillStyle = AX;
+      ctx.textAlign = 'right';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(fmtTick(n), ox - TL - 2/vs, yp);
+    }
+  }
+  // 'y' letter near top arrowhead
+  ctx.fillStyle = AX;
+  ctx.font = `italic bold ${fs * 1.2}px Arial`;
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'top';
+  ctx.fillText('y', ox + 3/vs, AL * 0.5);
+
+  // Origin dot
+  ctx.fillStyle = AX;
+  ctx.beginPath();
+  ctx.arc(ox, oy, 3.5/vs, 0, 2 * Math.PI);
+  ctx.fill();
+}
+
 function drawMeas(m, idx, isCurrent) {
   if (!m.start || !m.end) return;
   const s = w2s(m.start), e = w2s(m.end);
@@ -481,7 +676,6 @@ function drawMeas(m, idx, isCurrent) {
   const mx = (s.x + e.x) / 2, my = (s.y + e.y) / 2;
   const pa = ang + Math.PI / 2;
   const lx = mx + Math.cos(pa) * 20, ly = my + Math.sin(pa) * 20;
-  const deg = Math.round(ang * 180 / Math.PI);
   const txt = S.single ? fmt(dist) : `#${idx + 1}: ${fmt(dist)}`;
 
   ctx.font = 'bold 13px Arial';
@@ -582,6 +776,7 @@ function resetView() {
   canvas.height = canvasH;
   canvas.style.width  = canvasW + 'px';
   canvas.style.height = canvasH + 'px';
+  updateZoomDisplay();
 }
 
 // ── Mouse / touch events ──────────────────────────────────────────
@@ -595,13 +790,11 @@ canvas.addEventListener('mousedown', e => {
   lastImgPt = wp;
 
   if (e.button === 2) {
-    // Right-click: cancel pending click-click mode, or remove last measurement
     if (isPending) { isPending = false; curMeas = null; render(); return; }
     if (measurements.length) { measurements.pop(); render(); updateMeasList(); }
     return;
   }
   if (e.button === 1 || (e.button === 0 && e.altKey)) {
-    // Middle-click or Alt+drag: pan
     panDrag = true;
     panStart = { x: e.clientX, y: e.clientY };
     panTx0 = tx; panTy0 = ty;
@@ -616,7 +809,6 @@ canvas.addEventListener('mousedown', e => {
   }
   if (calStep === CAL.SECOND) { finishCal(calPt1, wp); return; }
 
-  // Second click in click-click mode: commit the pending measurement
   if (isPending) {
     curMeas.end = wp;
     if (d(curMeas.start, curMeas.end) > 2) { measurements.push(curMeas); updateMeasList(); }
@@ -653,7 +845,7 @@ canvas.addEventListener('mouseup', e => {
     if (d(curMeas.start, curMeas.end) > 2) {
       measurements.push(curMeas); updateMeasList(); curMeas = null;
     } else {
-      isPending = true; // short click → enter click-click mode; arrow follows cursor
+      isPending = true;
     }
     render();
   }
@@ -681,12 +873,12 @@ canvas.addEventListener('wheel', e => {
   ty = sp2.y - (sp2.y - ty) * (nv / vs);
   vs = nv;
   render();
+  updateZoomDisplay();
 }, { passive: false });
 
 // ── Arrow key cursor movement ─────────────────────────────────────
 const ARROWDP = { ArrowLeft:[-1,0], ArrowRight:[1,0], ArrowUp:[0,-1], ArrowDown:[0,1] };
 window.addEventListener('keydown', e => {
-  // Don't steal from text inputs
   const tag = document.activeElement?.tagName;
   if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
 
@@ -803,40 +995,46 @@ function updateCalInfo() {
 // ── URL sync ───────────────────────────────────────────────────────
 function syncUrl() {
   const p = new URLSearchParams();
-  if (S.imageUrl)          p.set('image', S.imageUrl);
-  if (S.calPx && S.calDist) p.set('cal', `${S.calPx},${S.calDist},${S.calUnit}`);
+  if (S.imageUrl)             p.set('image', S.imageUrl);
+  if (S.calPx && S.calDist)  p.set('cal', `${S.calPx},${S.calDist},${S.calUnit}`);
   p.set('unit', S.unit);
-  if (S.gridOn)            p.set('grid', `${S.gridN}${S.gridUnit}`);
+  if (S.gridOn)               p.set('grid', `${S.gridN}${S.gridUnit}`);
   if (S.gridColor !== '#0064c8') p.set('grid_color', S.gridColor);
-  if (!S.magOn)            p.set('mag', 'false');
-  if (!S.zoomOn)           p.set('zoom', 'false');
-  if (S.single)                p.set('single', 'true');
-  if (!S.statusOn)             p.set('status', 'false');
-  if (S.pxMode !== 'image')    p.set('px', S.pxMode);
-  if (S.title)             p.set('title', S.title);
-  if (!S.panelOn)          p.set('panel', 'false');
-  if (S.maxW !== 820)      p.set('max_w', String(S.maxW));
+  if (!S.magOn)               p.set('mag', 'false');
+  if (!S.zoomOn)              p.set('zoom', 'false');
+  if (S.zoomCtrl)             p.set('zoomcontrol', 'true');
+  if (S.single)               p.set('single', 'true');
+  if (!S.statusOn)            p.set('status', 'false');
+  if (S.pxMode !== 'image')   p.set('px', S.pxMode);
+  if (S.title)                p.set('title', S.title);
+  if (!S.panelOn)             p.set('panel', 'false');
+  if (S.maxW !== 820)         p.set('max_w', String(S.maxW));
+  if (S.axesOn)               p.set('axes', 'true');
+  if (S.axesOn && S.origin && S.origin !== '0,0') p.set('origin', S.origin);
   const q = p.toString();
   history.replaceState(null, '', location.pathname + (q ? '?' + q : ''));
 }
 
 // ── Control panel ──────────────────────────────────────────────────
 function updatePanelFromState() {
-  $('pi-image').value     = S.imageUrl;
-  $('pi-cal-px').value    = S.calPx || '';
-  $('pi-cal-dist').value  = S.calDist || '';
-  $('pi-cal-unit').value  = S.calUnit;
-  $('pi-unit').value      = S.unit;
-  $('pi-grid-on').checked = S.gridOn;
-  $('pi-grid-n').value    = S.gridN;
-  $('pi-grid-unit').value = S.gridUnit;
-  $('pi-grid-color').value= S.gridColor;
-  $('pi-mag').checked     = S.magOn;
-  $('pi-zoom').checked    = S.zoomOn;
+  $('pi-image').value        = S.imageUrl;
+  $('pi-cal-px').value       = S.calPx || '';
+  $('pi-cal-dist').value     = S.calDist || '';
+  $('pi-cal-unit').value     = S.calUnit;
+  $('pi-unit').value         = S.unit;
+  $('pi-grid-on').checked    = S.gridOn;
+  $('pi-grid-n').value       = S.gridN;
+  $('pi-grid-unit').value    = S.gridUnit;
+  $('pi-grid-color').value   = S.gridColor;
+  $('pi-mag').checked        = S.magOn;
+  $('pi-zoom').checked       = S.zoomOn;
+  $('pi-zoomctrl').checked   = S.zoomCtrl;
   $('pi-single').checked     = S.single;
   $('pi-status').checked     = S.statusOn;
   $('pi-px-display').checked = S.pxMode === 'display';
-  $('pi-title').value     = S.title;
+  $('pi-axes').checked       = S.axesOn;
+  $('pi-origin').value       = S.origin;
+  $('pi-title').value        = S.title;
   updateCalInfo();
 }
 
@@ -882,17 +1080,22 @@ $('btn-cal-click').addEventListener('click', () => { calStep !== CAL.NONE ? canc
 $('pi-unit').addEventListener('change', () => { S.unit = $('pi-unit').value; syncUrl(); render(); updateMeasList(); });
 
 // Grid
-$('pi-grid-on').addEventListener('change', () => { S.gridOn = $('pi-grid-on').checked; syncUrl(); render(); });
-$('pi-grid-n').addEventListener('change',  () => { S.gridN = parseFloat($('pi-grid-n').value) || 1; syncUrl(); render(); });
-$('pi-grid-unit').addEventListener('change',() => { S.gridUnit = $('pi-grid-unit').value; syncUrl(); render(); });
-$('pi-grid-color').addEventListener('input',() => { S.gridColor = $('pi-grid-color').value; syncUrl(); render(); });
+$('pi-grid-on').addEventListener('change',  () => { S.gridOn    = $('pi-grid-on').checked;                syncUrl(); render(); });
+$('pi-grid-n').addEventListener('change',   () => { S.gridN     = parseFloat($('pi-grid-n').value) || 1; syncUrl(); render(); });
+$('pi-grid-unit').addEventListener('change',() => { S.gridUnit  = $('pi-grid-unit').value;               syncUrl(); render(); });
+$('pi-grid-color').addEventListener('input',() => { S.gridColor = $('pi-grid-color').value;              syncUrl(); render(); });
 
 // Features
-$('pi-mag').addEventListener('change',    () => { S.magOn    = $('pi-mag').checked;    if (!S.magOn) mag.style.display = 'none'; syncUrl(); });
-$('pi-zoom').addEventListener('change',   () => { S.zoomOn   = $('pi-zoom').checked;   syncUrl(); });
-$('pi-single').addEventListener('change',     () => { S.single   = $('pi-single').checked;     if (S.single) { measurements = []; render(); updateMeasList(); } syncUrl(); });
-$('pi-status').addEventListener('change',     () => { S.statusOn = $('pi-status').checked;     updateStatusBar(); syncUrl(); });
-$('pi-px-display').addEventListener('change', () => { S.pxMode  = $('pi-px-display').checked ? 'display' : 'image'; render(); updateMeasList(); syncUrl(); });
+$('pi-mag').addEventListener('change',     () => { S.magOn    = $('pi-mag').checked;    if (!S.magOn) mag.style.display = 'none'; syncUrl(); });
+$('pi-zoom').addEventListener('change',    () => { S.zoomOn   = $('pi-zoom').checked;   syncUrl(); });
+$('pi-zoomctrl').addEventListener('change',() => { S.zoomCtrl = $('pi-zoomctrl').checked; updateZoomCtrlBar(); syncUrl(); });
+$('pi-single').addEventListener('change',  () => { S.single   = $('pi-single').checked; if (S.single) { measurements = []; render(); updateMeasList(); } syncUrl(); });
+$('pi-status').addEventListener('change',  () => { S.statusOn = $('pi-status').checked; updateStatusBar(); syncUrl(); });
+$('pi-px-display').addEventListener('change', () => { S.pxMode = $('pi-px-display').checked ? 'display' : 'image'; render(); updateMeasList(); syncUrl(); });
+
+// Axes
+$('pi-axes').addEventListener('change',  () => { S.axesOn = $('pi-axes').checked; syncUrl(); render(); });
+$('pi-origin').addEventListener('change',() => { S.origin = $('pi-origin').value.trim() || '0,0'; syncUrl(); render(); });
 
 // Title
 $('pi-title').addEventListener('input', () => { S.title = $('pi-title').value; updateTitle(); syncUrl(); });
@@ -913,11 +1116,18 @@ $('btn-copy-url').addEventListener('click', async () => {
   } catch { prompt('Copy this URL:', location.href); }
 });
 
+// Zoom control bar buttons
+$('btn-zoom-in').addEventListener('click',      () => doZoom(1.25));
+$('btn-zoom-out').addEventListener('click',     () => doZoom(1 / 1.25));
+$('btn-zoom-reset-bar').addEventListener('click', () => { resetView(); render(); });
+
 // ── Init ───────────────────────────────────────────────────────────
 showPanel(S.panelOn);
 updatePanelFromState();
 updateTitle();
 updateStatusBar();
+updateZoomCtrlBar();
+updateZoomDisplay();
 updateMeasList();
 loadImage(S.imageUrl);
 
@@ -1016,25 +1226,43 @@ loadImage(S.imageUrl);
         "name": "mag",
         "type": "toggle",
         "default": 1,
-        "desc": "Show magnifier"
+        "desc": "Show floating magnifier under cursor"
     },
     {
         "name": "zoom",
         "type": "toggle",
         "default": 1,
-        "desc": "Enable scroll zoom"
+        "desc": "Enable scroll-to-zoom and alt-drag-to-pan"
+    },
+    {
+        "name": "zoomcontrol",
+        "type": "toggle",
+        "default": 0,
+        "desc": "Show zoom-in / zoom-out / reset buttons with live zoom level display"
     },
     {
         "name": "single",
         "type": "toggle",
         "default": 0,
-        "desc": "Single measurement mode (click=start, click=end)"
+        "desc": "Single measurement mode (new drag replaces old)"
     },
     {
         "name": "status",
         "type": "toggle",
         "default": 1,
-        "desc": "Show status bar"
+        "desc": "Show status bar with x/y coordinates"
+    },
+    {
+        "name": "axes",
+        "type": "toggle",
+        "default": 0,
+        "desc": "Draw labeled x/y axes; tick spacing matches grid setting (or a smart default)"
+    },
+    {
+        "name": "origin",
+        "type": "text",
+        "default": "0,0",
+        "desc": "Axis origin in image pixels \"x,y\", or \"center\""
     },
     {
         "name": "panel",

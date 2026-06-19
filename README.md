@@ -31,6 +31,8 @@ Open the page, click **⚙ Panel** in the top-left to open the control panel, co
 | `grid_color` | `#0064c8` | Grid line color (any CSS hex color) |
 | `mag` | `true` | `mag=false` hides the floating magnifier |
 | `zoom` | `true` | `zoom=false` disables scroll-to-zoom and alt-drag pan |
+| `single` | `false` | `single=true` — each new drag replaces the previous measurement (replicates original sim behavior) |
+| `status` | `true` | `status=false` hides the coordinate/distance status bar below the image |
 | `title` | *(none)* | Text displayed above the image |
 | `panel` | `true` | `panel=false` hides the control panel (use for production embeds) |
 | `max_w` | `820` | Maximum canvas width in pixels |

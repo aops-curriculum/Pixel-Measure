@@ -196,6 +196,8 @@ canvas#c{display:block}
       <div class="sec-title">Features</div>
       <label class="row"><input type="checkbox" id="pi-mag" checked> Floating magnifier</label>
       <label class="row"><input type="checkbox" id="pi-zoom" checked> Scroll to zoom &amp; alt-drag to pan</label>
+      <label class="row"><input type="checkbox" id="pi-single"> Single measurement (new drag replaces old)</label>
+      <label class="row"><input type="checkbox" id="pi-status" checked> Show status bar</label>
     </div>
 
     <div class="sec">
@@ -266,6 +268,8 @@ const S = {
   gridColor: sp('grid_color', '#0064c8'),
   magOn:     spBool('mag', true),
   zoomOn:    spBool('zoom', true),
+  single:    spBool('single', false),
+  statusOn:  spBool('status', true),
   title:     sp('title', ''),
   panelOn:   spBool('panel', true),
   maxW:      parseInt(sp('max_w', '820')) || 820,
@@ -601,6 +605,7 @@ canvas.addEventListener('mousedown', e => {
   }
   if (calStep === CAL.SECOND) { finishCal(calPt1, wp); return; }
 
+  if (S.single) measurements = [];
   isDragging = true;
   curMeas = { start: wp, end: wp };
 });
@@ -780,6 +785,8 @@ function syncUrl() {
   if (S.gridColor !== '#0064c8') p.set('grid_color', S.gridColor);
   if (!S.magOn)            p.set('mag', 'false');
   if (!S.zoomOn)           p.set('zoom', 'false');
+  if (S.single)            p.set('single', 'true');
+  if (!S.statusOn)         p.set('status', 'false');
   if (S.title)             p.set('title', S.title);
   if (!S.panelOn)          p.set('panel', 'false');
   if (S.maxW !== 820)      p.set('max_w', String(S.maxW));
@@ -800,6 +807,8 @@ function updatePanelFromState() {
   $('pi-grid-color').value= S.gridColor;
   $('pi-mag').checked     = S.magOn;
   $('pi-zoom').checked    = S.zoomOn;
+  $('pi-single').checked  = S.single;
+  $('pi-status').checked  = S.statusOn;
   $('pi-title').value     = S.title;
   updateCalInfo();
 }
@@ -809,6 +818,10 @@ function updateTitle() {
   el.textContent = S.title || '';
   el.style.display = S.title ? 'block' : 'none';
   document.title = S.title || 'Pixel Measure';
+}
+
+function updateStatusBar() {
+  $('statusbar').style.display = S.statusOn ? '' : 'none';
 }
 
 function showPanel(on) {
@@ -848,8 +861,10 @@ $('pi-grid-unit').addEventListener('change',() => { S.gridUnit = $('pi-grid-unit
 $('pi-grid-color').addEventListener('input',() => { S.gridColor = $('pi-grid-color').value; syncUrl(); render(); });
 
 // Features
-$('pi-mag').addEventListener('change',  () => { S.magOn  = $('pi-mag').checked;  if (!S.magOn) mag.style.display = 'none'; syncUrl(); });
-$('pi-zoom').addEventListener('change', () => { S.zoomOn = $('pi-zoom').checked; syncUrl(); });
+$('pi-mag').addEventListener('change',    () => { S.magOn    = $('pi-mag').checked;    if (!S.magOn) mag.style.display = 'none'; syncUrl(); });
+$('pi-zoom').addEventListener('change',   () => { S.zoomOn   = $('pi-zoom').checked;   syncUrl(); });
+$('pi-single').addEventListener('change', () => { S.single   = $('pi-single').checked; if (S.single) { measurements = []; render(); updateMeasList(); } syncUrl(); });
+$('pi-status').addEventListener('change', () => { S.statusOn = $('pi-status').checked; updateStatusBar(); syncUrl(); });
 
 // Title
 $('pi-title').addEventListener('input', () => { S.title = $('pi-title').value; updateTitle(); syncUrl(); });
@@ -874,6 +889,7 @@ $('btn-copy-url').addEventListener('click', async () => {
 showPanel(S.panelOn);
 updatePanelFromState();
 updateTitle();
+updateStatusBar();
 updateMeasList();
 loadImage(S.imageUrl);
 

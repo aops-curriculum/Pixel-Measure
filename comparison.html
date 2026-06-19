@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pixel Measure — Before &amp; After Comparison</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:Arial,sans-serif;background:#f2f2f2;padding:24px;color:#222}
+h1{font-size:22px;margin-bottom:6px}
+.intro{font-size:14px;color:#666;margin-bottom:30px;max-width:860px;line-height:1.5}
+.intro code{background:#e0e0e0;padding:1px 5px;border-radius:3px;font-size:13px}
+
+.section{margin-bottom:48px}
+.section h2{font-size:18px;font-weight:bold;margin-bottom:4px;color:#333}
+.section .url{
+  font-family:monospace;font-size:11px;color:#888;
+  background:#e8e8e8;padding:4px 8px;border-radius:3px;
+  margin-bottom:10px;word-break:break-all;display:inline-block;max-width:100%;
+}
+.pair{display:flex;gap:16px}
+.half{flex:1;min-width:0;display:flex;flex-direction:column;gap:6px}
+.half h3{font-size:13px;color:#555;font-weight:normal}
+.half .file{font-family:monospace;font-size:11px;color:#999}
+iframe{
+  width:100%;height:650px;
+  border:1px solid #ccc;border-radius:6px;
+  background:#fff;display:block;
+}
+
+@media(max-width:900px){
+  .pair{flex-direction:column}
+  iframe{height:520px}
+}
+</style>
+</head>
+<body>
+
+<h1>Pixel Measure — Comparison</h1>
+<p class="intro">
+  Each row shows the <strong>original hardcoded simulation</strong> alongside an equivalent
+  <code>measure.html</code> configured with URL parameters. Both produce the same
+  measurement tool. Use the right-column URL as a template for new images — just swap
+  the image URL, calibration, and unit.
+</p>
+
+<!-- ── Basketball Player ── -->
+<div class="section">
+  <h2>Basketball Player</h2>
+  <div class="url">measure.html?image=https://aops-curriculum.github.io/Pixel-Measure/Images/basketball_player.png&amp;cal=151,11.6,ft&amp;unit=ft_dec&amp;panel=false</div>
+  <div class="pair">
+    <div class="half">
+      <h3>Original (hardcoded)</h3>
+      <span class="file">basketball_player.html</span>
+      <iframe src="basketball_player.html" loading="lazy" title="Original basketball player sim"></iframe>
+    </div>
+    <div class="half">
+      <h3>New: measure.html with parameters</h3>
+      <span class="file">measure.html?image=…basketball_player.png&amp;cal=151,11.6,ft&amp;unit=ft_dec&amp;panel=false</span>
+      <iframe
+        src="measure.html?image=https://aops-curriculum.github.io/Pixel-Measure/Images/basketball_player.png&cal=151,11.6,ft&unit=ft_dec&panel=false"
+        loading="lazy"
+        title="measure.html — basketball player">
+      </iframe>
+    </div>
+  </div>
+</div>
+
+<!-- ── Guitar Fretboard ── -->
+<div class="section">
+  <h2>Guitar Fretboard</h2>
+  <div class="url">measure.html?image=http://cdn.artofproblemsolving.com/school/crypt/00540-e12599cedadfdc40445dca22ddd227e6417975d2/files/11_script_guitar_fretboard_counted.png&amp;cal=604,64.6,cm&amp;unit=cm&amp;panel=false</div>
+  <div class="pair">
+    <div class="half">
+      <h3>Original (hardcoded)</h3>
+      <span class="file">guitar_measure.html</span>
+      <iframe src="guitar_measure.html" loading="lazy" title="Original guitar sim"></iframe>
+    </div>
+    <div class="half">
+      <h3>New: measure.html with parameters</h3>
+      <span class="file">measure.html?image=…guitar_fretboard…&amp;cal=604,64.6,cm&amp;unit=cm&amp;panel=false</span>
+      <iframe
+        src="measure.html?image=http://cdn.artofproblemsolving.com/school/crypt/00540-e12599cedadfdc40445dca22ddd227e6417975d2/files/11_script_guitar_fretboard_counted.png&cal=604,64.6,cm&unit=cm&panel=false"
+        loading="lazy"
+        title="measure.html — guitar fretboard">
+      </iframe>
+    </div>
+  </div>
+</div>
+
+<!-- ── Moon and Airplane ── -->
+<div class="section">
+  <h2>Moon and Airplane</h2>
+  <div class="url">measure.html?image=https://aops-curriculum.github.io/Pixel-Measure/Images/04_script_moon_airplane.jpg&amp;panel=false</div>
+  <div class="pair">
+    <div class="half">
+      <h3>Original (hardcoded)</h3>
+      <span class="file">pixel_measure_4_script_moon_airplane.html</span>
+      <iframe src="pixel_measure_4_script_moon_airplane.html" loading="lazy" title="Original moon/airplane sim"></iframe>
+    </div>
+    <div class="half">
+      <h3>New: measure.html with parameters</h3>
+      <span class="file">measure.html?image=…04_script_moon_airplane.jpg&amp;panel=false</span>
+      <iframe
+        src="measure.html?image=https://aops-curriculum.github.io/Pixel-Measure/Images/04_script_moon_airplane.jpg&panel=false"
+        loading="lazy"
+        title="measure.html — moon and airplane">
+      </iframe>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

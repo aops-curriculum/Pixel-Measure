@@ -198,6 +198,7 @@ canvas#c{display:block}
       <label class="row"><input type="checkbox" id="pi-zoom" checked> Scroll to zoom &amp; alt-drag to pan</label>
       <label class="row"><input type="checkbox" id="pi-single"> Single measurement (new drag replaces old)</label>
       <label class="row"><input type="checkbox" id="pi-status" checked> Show status bar</label>
+      <label class="row"><input type="checkbox" id="pi-px-display"> Display pixels (match legacy sims — use with max_w=650)</label>
     </div>
 
     <div class="sec">
@@ -270,6 +271,7 @@ const S = {
   zoomOn:    spBool('zoom', true),
   single:    spBool('single', false),
   statusOn:  spBool('status', true),
+  pxMode:    sp('px', 'image'),   // 'image' = original image px (default); 'display' = canvas px at fit scale
   title:     sp('title', ''),
   panelOn:   spBool('panel', true),
   maxW:      parseInt(sp('max_w', '820')) || 820,
@@ -307,7 +309,7 @@ let imgW = 0, imgH = 0;
 let canvasW = 400, canvasH = 300;
 
 // View transform: screenPt = imgPt × vs + (tx, ty)
-let vs = 1, tx = 0, ty = 0;
+let vs = 1, tx = 0, ty = 0, vsInit = 1;
 
 // Measurements: [{start:{x,y}, end:{x,y}}] in image pixels
 let measurements = [];
@@ -345,7 +347,10 @@ function mPerImgPx() {
 
 function fmt(imgPx) {
   const mpp = mPerImgPx(), u = S.unit;
-  if (!mpp || u === 'px') return `${Math.round(imgPx)} px`;
+  if (!mpp || u === 'px') {
+    const px = S.pxMode === 'display' ? Math.round(imgPx * vsInit) : Math.round(imgPx);
+    return `${px} px`;
+  }
   const m = imgPx * mpp;
   const tr = (n, d) => (+n).toFixed(d).replace(/\.?0+$/, '');
   if (u === 'ft_in') {
@@ -567,7 +572,7 @@ function resetView() {
   const sv = Math.min(maxW / imgW, maxH / imgH);
   canvasW = Math.round(imgW * sv);
   canvasH = Math.round(imgH * sv);
-  vs = sv; tx = 0; ty = 0;
+  vs = sv; vsInit = sv; tx = 0; ty = 0;
   canvas.width  = canvasW;
   canvas.height = canvasH;
   canvas.style.width  = canvasW + 'px';
@@ -785,8 +790,9 @@ function syncUrl() {
   if (S.gridColor !== '#0064c8') p.set('grid_color', S.gridColor);
   if (!S.magOn)            p.set('mag', 'false');
   if (!S.zoomOn)           p.set('zoom', 'false');
-  if (S.single)            p.set('single', 'true');
-  if (!S.statusOn)         p.set('status', 'false');
+  if (S.single)                p.set('single', 'true');
+  if (!S.statusOn)             p.set('status', 'false');
+  if (S.pxMode !== 'image')    p.set('px', S.pxMode);
   if (S.title)             p.set('title', S.title);
   if (!S.panelOn)          p.set('panel', 'false');
   if (S.maxW !== 820)      p.set('max_w', String(S.maxW));
@@ -807,8 +813,9 @@ function updatePanelFromState() {
   $('pi-grid-color').value= S.gridColor;
   $('pi-mag').checked     = S.magOn;
   $('pi-zoom').checked    = S.zoomOn;
-  $('pi-single').checked  = S.single;
-  $('pi-status').checked  = S.statusOn;
+  $('pi-single').checked     = S.single;
+  $('pi-status').checked     = S.statusOn;
+  $('pi-px-display').checked = S.pxMode === 'display';
   $('pi-title').value     = S.title;
   updateCalInfo();
 }
@@ -863,8 +870,9 @@ $('pi-grid-color').addEventListener('input',() => { S.gridColor = $('pi-grid-col
 // Features
 $('pi-mag').addEventListener('change',    () => { S.magOn    = $('pi-mag').checked;    if (!S.magOn) mag.style.display = 'none'; syncUrl(); });
 $('pi-zoom').addEventListener('change',   () => { S.zoomOn   = $('pi-zoom').checked;   syncUrl(); });
-$('pi-single').addEventListener('change', () => { S.single   = $('pi-single').checked; if (S.single) { measurements = []; render(); updateMeasList(); } syncUrl(); });
-$('pi-status').addEventListener('change', () => { S.statusOn = $('pi-status').checked; updateStatusBar(); syncUrl(); });
+$('pi-single').addEventListener('change',     () => { S.single   = $('pi-single').checked;     if (S.single) { measurements = []; render(); updateMeasList(); } syncUrl(); });
+$('pi-status').addEventListener('change',     () => { S.statusOn = $('pi-status').checked;     updateStatusBar(); syncUrl(); });
+$('pi-px-display').addEventListener('change', () => { S.pxMode  = $('pi-px-display').checked ? 'display' : 'image'; render(); updateMeasList(); syncUrl(); });
 
 // Title
 $('pi-title').addEventListener('input', () => { S.title = $('pi-title').value; updateTitle(); syncUrl(); });

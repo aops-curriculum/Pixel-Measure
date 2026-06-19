@@ -33,6 +33,7 @@ Open the page, click **⚙ Panel** in the top-left to open the control panel, co
 | `zoom` | `true` | `zoom=false` disables scroll-to-zoom and alt-drag pan |
 | `single` | `false` | `single=true` — each new drag replaces the previous measurement (replicates original sim behavior) |
 | `status` | `true` | `status=false` hides the coordinate/distance status bar below the image |
+| `px` | `image` | Pixel coordinate system when `unit=px`: `image` = original image pixels (default, zoom-independent); `display` = canvas pixels at the initial fit scale (matches legacy hardcoded sims) |
 | `title` | *(none)* | Text displayed above the image |
 | `panel` | `true` | `panel=false` hides the control panel (use for production embeds) |
 | `max_w` | `820` | Maximum canvas width in pixels |
@@ -76,6 +77,16 @@ measure.html?image=https://host/guitar.png&cal=604,64.6,cm&unit=cm&grid=10cm&pan
 ```
 measure.html?image=https://host/satellite.jpg&cal=500,1,km&unit=km&title=Satellite+Image&max_w=1000&panel=false
 ```
+
+## Pixel coordinate systems
+
+By default (`px=image`), distances are reported in **original image pixels** — the actual pixel dimensions of the source file. This is zoom-independent and consistent regardless of canvas size.
+
+The legacy hardcoded sims (`basketball_player.html`, `guitar_measure.html`, etc.) reported **canvas pixels** — the drag distance in their fixed 650×650 canvas. Because those canvases scaled the image down ~3×, their pixel values are ~3× smaller than `measure.html`'s defaults.
+
+To match legacy pixel values exactly: use `?px=display&max_w=650`. The `px=display` mode multiplies by the initial fit-to-canvas scale (zoom-independent, so measurements don't change when you zoom in).
+
+For **real-world units** (`cal=` + `unit=ft/m/cm/km`), this distinction doesn't matter — calibration always works through original image pixels internally.
 
 ## Simulations replaced
 

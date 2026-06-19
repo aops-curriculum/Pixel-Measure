@@ -936,6 +936,7 @@ loadImage(S.imageUrl);
 
 
 
+
 <!-- CHEAT PANEL — visible only when ?cheat=1 is in the URL -->
 <script>
 (function () {
@@ -1065,10 +1066,28 @@ loadImage(S.imageUrl);
         "step": 50,
         "default": 820,
         "desc": "Maximum canvas width (px)"
+    },
+    {
+        "name": "h",
+        "type": "number",
+        "min": 80,
+        "max": 2000,
+        "step": 10,
+        "default": "",
+        "desc": "Exact reported iframe height (px); overrides auto"
+    },
+    {
+        "name": "maxh",
+        "type": "number",
+        "min": 80,
+        "max": 2000,
+        "step": 10,
+        "default": "",
+        "desc": "Cap on canvas height and reported iframe height (px)"
     }
 ];
 
-  var EMBED_KEYS = ['maxscale', 'maxw', 'h', 'maxh', 'cheat'];
+  var EMBED_KEYS = ['cheat'];
 
   // Build clean URL (no embed/cheat params) with optional overrides
   function buildCleanUrl(overrides) {

@@ -252,6 +252,9 @@ const $ = id => document.getElementById(id);
 const SP = new URLSearchParams(location.search);
 function sp(k, def) { return SP.has(k) ? SP.get(k) : def; }
 function spBool(k, def) { return SP.has(k) ? SP.get(k) !== 'false' : def; }
+function spNum(k, def) { return SP.has(k) && isFinite(+SP.get(k)) ? +SP.get(k) : def; }
+const EMBED_H    = spNum('h', 0);      // exact reported height override
+const EMBED_MAXH = spNum('maxh', 0);   // cap on both canvas height and reported height
 
 // ── Unit table ───────────────────────────────────────────────────
 const U2M = { ft: 0.3048, m: 1, cm: 0.01, km: 1000 };
@@ -569,7 +572,8 @@ function loadImage(url) {
 
 function resetView() {
   const maxW = S.maxW;
-  const maxH = Math.max(300, Math.floor(window.innerHeight * 0.85));
+  const _rawH = Math.max(300, Math.floor(window.innerHeight * 0.85));
+  const maxH = EMBED_MAXH > 0 ? Math.min(_rawH, EMBED_MAXH) : _rawH;
   const sv = Math.min(maxW / imgW, maxH / imgH);
   canvasW = Math.round(imgW * sv);
   canvasH = Math.round(imgH * sv);
@@ -921,7 +925,8 @@ loadImage(S.imageUrl);
 (function () {
   var last = 0;
   function report() {
-    var h = document.body.scrollHeight + 4;
+    var h = EMBED_H > 0 ? EMBED_H : document.body.scrollHeight + 4;
+    if (EMBED_MAXH > 0) h = Math.min(h, EMBED_MAXH);
     if (h > 0 && Math.abs(h - last) >= 2) { last = h; window.parent.postMessage({ type: 'resize', height: h }, '*'); }
   }
   window.addEventListener('load', report);

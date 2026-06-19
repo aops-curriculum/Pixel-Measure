@@ -315,6 +315,7 @@ let vs = 1, tx = 0, ty = 0, vsInit = 1;
 let measurements = [];
 let curMeas = null;
 let isDragging = false;
+let isPending = false;  // first click placed; arrow follows cursor until second click
 let lastImgPt = null;   // last cursor pos in image coords (for arrow keys)
 
 // Calibration click mode
@@ -478,7 +479,7 @@ function drawMeas(m, idx, isCurrent) {
   const pa = ang + Math.PI / 2;
   const lx = mx + Math.cos(pa) * 20, ly = my + Math.sin(pa) * 20;
   const deg = Math.round(ang * 180 / Math.PI);
-  const txt = `#${idx + 1}: ${fmt(dist)}`;
+  const txt = S.single ? fmt(dist) : `#${idx + 1}: ${fmt(dist)}`;
 
   ctx.font = 'bold 13px Arial';
   const tw = ctx.measureText(txt).width;
@@ -590,7 +591,8 @@ canvas.addEventListener('mousedown', e => {
   lastImgPt = wp;
 
   if (e.button === 2) {
-    // Right-click: remove last measurement
+    // Right-click: cancel pending click-click mode, or remove last measurement
+    if (isPending) { isPending = false; curMeas = null; render(); return; }
     if (measurements.length) { measurements.pop(); render(); updateMeasList(); }
     return;
   }
@@ -610,6 +612,15 @@ canvas.addEventListener('mousedown', e => {
   }
   if (calStep === CAL.SECOND) { finishCal(calPt1, wp); return; }
 
+  // Second click in click-click mode: commit the pending measurement
+  if (isPending) {
+    curMeas.end = wp;
+    if (d(curMeas.start, curMeas.end) > 2) { measurements.push(curMeas); updateMeasList(); }
+    curMeas = null; isPending = false;
+    render();
+    return;
+  }
+
   if (S.single) measurements = [];
   isDragging = true;
   curMeas = { start: wp, end: wp };
@@ -625,8 +636,9 @@ canvas.addEventListener('mousemove', e => {
     render(); return;
   }
   if (isDragging && curMeas) { curMeas.end = wp; render(); }
+  if (isPending && curMeas) { curMeas.end = wp; render(); }
   if (calStep === CAL.SECOND) render();
-  updateStatus(wp, isDragging ? curMeas : null);
+  updateStatus(wp, (isDragging || isPending) ? curMeas : null);
   updateMag(sp2, e.clientX, e.clientY);
 });
 
@@ -634,8 +646,11 @@ canvas.addEventListener('mouseup', e => {
   if (panDrag) { panDrag = false; canvas.style.cursor = 'crosshair'; return; }
   if (isDragging && curMeas) {
     isDragging = false;
-    if (d(curMeas.start, curMeas.end) > 2) { measurements.push(curMeas); updateMeasList(); }
-    curMeas = null;
+    if (d(curMeas.start, curMeas.end) > 2) {
+      measurements.push(curMeas); updateMeasList(); curMeas = null;
+    } else {
+      isPending = true; // short click → enter click-click mode; arrow follows cursor
+    }
     render();
   }
 });
@@ -677,8 +692,8 @@ window.addEventListener('keydown', e => {
     const [dx, dy] = ARROWDP[e.key];
     const step = e.shiftKey ? 10 : 1;
     lastImgPt = { x: lastImgPt.x + dx * step, y: lastImgPt.y + dy * step };
-    if (isDragging && curMeas) curMeas.end = lastImgPt;
-    updateStatus(lastImgPt, isDragging ? curMeas : null);
+    if ((isDragging || isPending) && curMeas) curMeas.end = lastImgPt;
+    updateStatus(lastImgPt, (isDragging || isPending) ? curMeas : null);
     render();
     updateMeasList();
     mag.style.display = 'none';
@@ -687,6 +702,7 @@ window.addEventListener('keydown', e => {
 
   if (e.key === 'Escape') {
     if (calStep !== CAL.NONE) { cancelCal(); return; }
+    if (isPending) { isPending = false; curMeas = null; render(); return; }
     if (isDragging) { isDragging = false; curMeas = null; render(); }
   }
 });

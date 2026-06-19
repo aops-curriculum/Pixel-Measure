@@ -13,8 +13,9 @@ Open the page, click **⚙ Panel** in the top-left to open the control panel, co
 ## How to use
 
 - **Drag** on the image to measure a distance. Arrowheads appear at both ends.
+- **Click-click** (alternative): single click sets the start point; an animated arrow follows your cursor; second click commits the endpoint.
 - **Multiple measurements** accumulate (each gets a numbered label).
-- **Right-click** to remove the last measurement. **Esc** cancels a measurement in progress.
+- **Right-click** to remove the last measurement (or cancel a pending click-click measurement). **Esc** cancels a measurement in progress.
 - **Scroll wheel** to zoom in/out toward the cursor.
 - **Alt + drag** (or middle-click + drag) to pan when zoomed in.
 - **Arrow keys** nudge the current drag endpoint by 1 image pixel (**Shift + arrow** = 10 px).

@@ -3,12 +3,16 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="eigennode-aspect" content="597/400" />
 <title>Pixel Measuring Tool (Multi-Units + Magnifier)</title>
 <style>
-body{margin:0;padding:0 20px 20px 20px;font-family:Arial,sans-serif;background:#f0f0f0;display:flex;flex-direction:column;align-items:center}
-#canvas-container{position:relative;display:inline-block;background:#fff;box-shadow:0 0 10px rgba(0,0,0,.1)}
-#measurement-canvas{position:absolute;top:0;left:0;cursor:crosshair}
-#image-canvas{display:block}
+html,body{width:100%;height:100%}
+body{margin:0;padding:0;font-family:Arial,sans-serif;background:#f0f0f0;overflow:hidden}
+/* The iframe is sized to the image's aspect (597/400); the container fills it
+   and both stacked canvases fill the container at device-pixel resolution. */
+#canvas-container{position:relative;width:100%;height:100%;background:#fff}
+#image-canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+#measurement-canvas{position:absolute;inset:0;width:100%;height:100%;cursor:crosshair}
 #measurement-label{position:absolute;background-color:rgba(255,255,255,.9);padding:4px 8px;border-radius:4px;font-size:14px;color:red;pointer-events:none;display:none;border:1px solid rgba(255,0,0,.3);white-space:nowrap}
 /* floating magnifier */
 #magnifier-floating{position:fixed;z-index:1000;pointer-events:none;display:none;border:1px solid #000;background:#fff;image-rendering:pixelated;}
@@ -107,29 +111,36 @@ let isDragging=false;let startPos=null;let currentPos=null;
 /* image scale bookkeeping */
 let imageScale=1;let imageOffsetX=0;let imageOffsetY=0;let imageDrawn=false;let loadedImg=null;
 
-/* canvas dimensions - will be set when image loads */
-let canvasWidth=MAX_DIMENSION;
-let canvasHeight=MAX_DIMENSION;
+/* canvas dimensions in LOGICAL (CSS) px — set by layout() */
+let canvasWidth=0;
+let canvasHeight=0;
+
+/* Lay out both canvases to fill the iframe at device-pixel resolution. Logical
+   coords are CSS px (setTransform(dpr)); the full-res image is drawn to fill, so
+   it stays crisp at any size. imageScale = CSS px per ORIGINAL image pixel, so
+   all the measurement/magnifier math below is unchanged. */
+function layout(){
+  if(!loadedImg) return;
+  const dpr=window.devicePixelRatio||1;
+  const cw=container.clientWidth, ch=container.clientHeight;
+  if(!cw||!ch) return;
+  canvasWidth=cw; canvasHeight=ch;
+  imageCanvas.width=measureCanvas.width=Math.round(cw*dpr);
+  imageCanvas.height=measureCanvas.height=Math.round(ch*dpr);
+  imageCtx.setTransform(dpr,0,0,dpr,0,0);
+  measureCtx.setTransform(dpr,0,0,dpr,0,0);
+  imageCtx.imageSmoothingEnabled=true;
+  imageCtx.clearRect(0,0,cw,ch);
+  imageCtx.drawImage(loadedImg,0,0,cw,ch);
+  imageScale=cw/loadedImg.naturalWidth;   // CSS px per original px
+  imageOffsetX=0; imageOffsetY=0;
+  drawMeasurement();
+}
 
 /* load image */
-function loadImage(url){measureCtx.clearRect(0,0,canvasWidth,canvasHeight);label.style.display="none";imageDrawn=false;const img=new Image();let corsAttempted=false;img.onload=function(){loadedImg=img;
-// Calculate scale to fit within MAX_DIMENSION while preserving aspect ratio
-imageScale=Math.min(MAX_DIMENSION/img.width,MAX_DIMENSION/img.height,1);
-// Calculate the actual canvas dimensions based on scaled image
-canvasWidth=Math.round(img.width*imageScale);
-canvasHeight=Math.round(img.height*imageScale);
-// Set canvas sizes to match the scaled image exactly
-imageCanvas.width=canvasWidth;
-imageCanvas.height=canvasHeight;
-measureCanvas.width=canvasWidth;
-measureCanvas.height=canvasHeight;
-// No offset needed since canvas matches image size exactly
-imageOffsetX=0;
-imageOffsetY=0;
-// Draw the image filling the entire canvas
-imageCtx.drawImage(img,0,0,canvasWidth,canvasHeight);
-imageDrawn=true;};img.onerror=function(){if(!corsAttempted){corsAttempted=true;console.log("Direct load failed, retrying via CORS proxy…");img.src="https://corsproxy.io/?"+encodeURIComponent(url);}else{imageCtx.fillStyle="#f5f5f5";imageCtx.fillRect(0,0,canvasWidth,canvasHeight);imageCtx.fillStyle="#333";imageCtx.font="16px Arial";imageCtx.textAlign="center";imageCtx.fillText("Failed to load image due to CORS policy",canvasWidth/2,canvasHeight/2-40);}};img.src=url;}
+function loadImage(url){label.style.display="none";imageDrawn=false;const img=new Image();let corsAttempted=false;img.onload=function(){loadedImg=img;imageDrawn=true;layout();};img.onerror=function(){if(!corsAttempted){corsAttempted=true;console.log("Direct load failed, retrying via CORS proxy…");img.src="https://corsproxy.io/?"+encodeURIComponent(url);}else{const dpr=window.devicePixelRatio||1;const cw=container.clientWidth||300,ch=container.clientHeight||200;imageCanvas.width=Math.round(cw*dpr);imageCanvas.height=Math.round(ch*dpr);imageCtx.setTransform(dpr,0,0,dpr,0,0);imageCtx.fillStyle="#f5f5f5";imageCtx.fillRect(0,0,cw,ch);imageCtx.fillStyle="#333";imageCtx.font="16px Arial";imageCtx.textAlign="center";imageCtx.fillText("Failed to load image due to CORS policy",cw/2,ch/2);}};img.src=url;}
 loadImage(IMAGE_URL);
+new ResizeObserver(layout).observe(container);
 
 /* mouse helpers */
 function getMousePos(e){const r=measureCanvas.getBoundingClientRect();return{x:e.clientX-r.left,y:e.clientY-r.top};}

@@ -728,6 +728,33 @@ function updateMag(screenPt, clientX, clientY) {
   magCtx.imageSmoothingEnabled = false;
   magCtx.drawImage(loadedImg, sx, sy, sw, sh, 0, 0, 128, 128);
 
+  if (S.gridOn) {
+    let gsp;
+    if (S.gridUnit === 'px') {
+      gsp = S.gridN;
+    } else {
+      const mpp = mPerImgPx();
+      if (mpp) gsp = (S.gridN * (U2M[S.gridUnit] || 1)) / mpp;
+    }
+    if (gsp && gsp >= 0.5) {
+      const h = S.gridColor.replace('#', '');
+      const gr = parseInt(h.slice(0,2),16), gg = parseInt(h.slice(2,4),16), gb = parseInt(h.slice(4,6),16);
+      const scx = 128 / sw, scy = 128 / sh;
+      magCtx.strokeStyle = `rgba(${gr},${gg},${gb},0.6)`;
+      magCtx.lineWidth = 1;
+      magCtx.beginPath();
+      for (let gx = Math.ceil(sx / gsp) * gsp; gx < sx + sw; gx += gsp) {
+        const mx = (gx - sx) * scx;
+        magCtx.moveTo(mx, 0); magCtx.lineTo(mx, 128);
+      }
+      for (let gy = Math.ceil(sy / gsp) * gsp; gy < sy + sh; gy += gsp) {
+        const my = (gy - sy) * scy;
+        magCtx.moveTo(0, my); magCtx.lineTo(128, my);
+      }
+      magCtx.stroke();
+    }
+  }
+
   const cx = 64, cy = 64;
   magCtx.strokeStyle = 'red';
   magCtx.lineWidth = 1;

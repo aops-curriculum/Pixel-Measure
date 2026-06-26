@@ -1210,7 +1210,7 @@ if (S.noPanel) {
 } else {
   showPanel(S.panelOn);
 }
-if (S.showReset) $('reset-btn').style.display = '';
+if (S.showReset) $('reset-btn').style.display = 'block';
 $('reset-btn').addEventListener('click', () => {
   measurements = []; curMeas = null; isDragging = false;
   resetView(); render(); updateMeasList();

@@ -776,9 +776,13 @@ function updateMag(screenPt, clientX, clientY) {
   magCtx.stroke();
 
   const pad = 18, w = 128;
-  let mx2 = clientX + pad, my2 = clientY + pad;
+  let mx2 = clientX + pad;
   if (mx2 + w > window.innerWidth)  mx2 = clientX - pad - w;
+  let my2 = clientY + pad;
   if (my2 + w > window.innerHeight) my2 = clientY - pad - w;
+  // Clamp so the magnifier never exits the viewport on any edge
+  mx2 = Math.max(0, Math.min(mx2, window.innerWidth  - w));
+  my2 = Math.max(0, Math.min(my2, window.innerHeight - w));
   mag.style.left = mx2 + 'px';
   mag.style.top  = my2 + 'px';
   mag.style.display = 'block';
